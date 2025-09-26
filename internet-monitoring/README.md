@@ -28,6 +28,14 @@ Once configurations are done, run the following command:
 
 That's it. docker-compose builds the entire Grafana and Prometheus stack automagically.
 
+## UXI-inspired synthetic workflows
+
+The stack now mirrors Aruba UXI synthetic workflows so you can benchmark multiple access layers with a single probe:
+
+* **Expanded blackbox modules** cover DNS resolution, DHCP lease acquisition, captive portal bypass, and multi-step SaaS login sequences.
+* **Purpose-built exporters** exercise RADIUS authentication flows, VPN edge health checks, and VoIP signalling quality.
+* **Grafana "UXI Synthetic Experience Overview" dashboard** contrasts availability, latency, jitter, and MOS targets across each service tier.
+
 The Grafana Dashboard is now accessible via: `http://<Host IP Address>:3030` for example http://localhost:3030
 
 username - admin

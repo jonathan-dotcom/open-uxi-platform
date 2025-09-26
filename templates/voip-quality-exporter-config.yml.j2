@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+interval: {{ voip_quality_exporter_interval }}
+timeout: {{ voip_quality_exporter_timeout }}
+profiles:
+{% for profile in voip_quality_exporter_profiles %}
+  - name: "{{ profile.name }}"
+    registrar: "{{ profile.registrar }}"
+    jitter_threshold_ms: {{ profile.jitter_threshold_ms }}
+    mos_threshold: {{ profile.mos_threshold }}
+{% if profile.expected_response is defined %}    expected_response: "{{ profile.expected_response }}"
+{% endif %}{% if profile.transport is defined %}    transport: "{{ profile.transport }}"
+{% endif %}{% endfor %}

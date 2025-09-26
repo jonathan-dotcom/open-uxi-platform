@@ -44,8 +44,32 @@
   notify: Restart internet-monitoring
   become: false
 
+- name: Render RADIUS exporter configuration.
+  ansible.builtin.template:
+    src: templates/radius-exporter-config.yml.j2
+    dest: "{{ config_dir }}/internet-monitoring/exporters/radius/config.yml"
+    mode: 0600
+  when: radius_exporter_enable | default(false)
+  become: false
+
+- name: Render VPN exporter configuration.
+  ansible.builtin.template:
+    src: templates/vpn-exporter-config.yml.j2
+    dest: "{{ config_dir }}/internet-monitoring/exporters/vpn/config.yml"
+    mode: 0600
+  when: vpn_exporter_enable | default(false)
+  become: false
+
+- name: Render VoIP quality exporter configuration.
+  ansible.builtin.template:
+    src: templates/voip-quality-exporter-config.yml.j2
+    dest: "{{ config_dir }}/internet-monitoring/exporters/voip/config.yml"
+    mode: 0600
+  when: voip_quality_exporter_enable | default(false)
+  become: false
+
 - name: Ensure internet-monitoring environment is running.
   community.docker.docker_compose_v2:
     project_src: "{{ config_dir }}/internet-monitoring/"
-    build: never
+    build: "{{ 'always' if (radius_exporter_enable | default(false)) or (vpn_exporter_enable | default(false)) or (voip_quality_exporter_enable | default(false)) else 'never' }}"
   become: false

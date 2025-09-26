@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+interval: {{ vpn_exporter_interval }}
+timeout: {{ vpn_exporter_timeout }}
+targets:
+{% for target in vpn_exporter_targets %}
+  - name: "{{ target.name }}"
+    management_uri: "{{ target.management_uri }}"
+    scrape_user: "{{ target.scrape_user }}"
+    scrape_password: "{{ target.scrape_password }}"
+{% if target.verify_ssl is defined %}    verify_ssl: {{ target.verify_ssl | lower }}
+{% endif %}{% if target.expected_status is defined %}    expected_status: {{ target.expected_status }}
+{% endif %}{% endfor %}

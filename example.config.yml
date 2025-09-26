@@ -24,6 +24,24 @@ monitoring_ping_hosts:  # [URL];[HUMAN_READABLE_NAME]
   - http://www.google.com/;google.com
   - https://github.com/;github.com
   - https://www.apple.com/;apple.com
+monitoring_dns_interval: 30s
+monitoring_dns_checks:
+  - name: "Cloudflare DNS"
+    target: "www.cloudflare.com"
+  - name: "Google DNS"
+    target: "www.google.com"
+monitoring_dhcp_interval: 5m
+monitoring_dhcp_servers:
+  - name: "Branch DHCP"
+    target: "192.168.1.1:67"
+monitoring_captive_portal_interval: 1m
+monitoring_captive_portal_checks:
+  - name: "Guest Wi-Fi"
+    target: "https://captive.example.com/status"
+monitoring_saas_interval: 1m
+monitoring_saas_journeys:
+  - name: "Microsoft 365"
+    target: "https://login.microsoftonline.com/"
 
 # Prometheus configuration.
 prometheus_monitor_prometheus: false
@@ -48,3 +66,34 @@ airgradient_sensors:
 
 # Starlink configuration. (Also requires `monitoring_enable`)
 starlink_enable: false
+
+radius_exporter_enable: false
+radius_exporter_scrape_port: 9812
+radius_exporter_interval: 60
+radius_exporter_timeout: 5
+radius_exporter_targets:
+  - name: "ClearPass"
+    address: "radius-controller.example.com:1812"
+    secret: "testing123"
+    username: "uxi-probe"
+    password: "super-secret"
+
+vpn_exporter_enable: false
+vpn_exporter_scrape_port: 9310
+vpn_exporter_interval: 60
+vpn_exporter_timeout: 5
+vpn_exporter_targets:
+  - name: "Branch Tunnel"
+    management_uri: "https://vpn.example.com:8443/status"
+    scrape_user: "metrics"
+    scrape_password: "metrics-password"
+
+voip_quality_exporter_enable: false
+voip_quality_exporter_scrape_port: 9899
+voip_quality_exporter_interval: 30
+voip_quality_exporter_timeout: 5
+voip_quality_exporter_profiles:
+  - name: "SIP Provider"
+    registrar: "sip.provider.example.com:5060"
+    jitter_threshold_ms: 30
+    mos_threshold: 4.0
