@@ -43,6 +43,15 @@ services:
     links:
       - ping:ping
       - speedtest:speedtest
+{% if radius_exporter_enable %}
+      - radius-exporter:radius-exporter
+{% endif %}
+{% if vpn_exporter_enable %}
+      - vpn-exporter:vpn-exporter
+{% endif %}
+{% if voip_quality_exporter_enable %}
+      - voip-quality-exporter:voip-quality-exporter
+{% endif %}
     networks:
       - back-tier
 {% if domain_name_enable and domain_name and domain_prometheus %}
@@ -124,3 +133,60 @@ services:
       - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
     networks:
       - back-tier
+{% if radius_exporter_enable %}
+
+  radius-exporter:
+    image: uxi/radius-exporter:latest
+    build:
+      context: ./exporters/radius
+    restart: always
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./exporters/radius/config.yml:/app/config.yml:ro
+    environment:
+      EXPORTER_PORT: "{{ radius_exporter_scrape_port }}"
+      EXPORTER_INTERVAL: "{{ radius_exporter_interval }}"
+      EXPORTER_TIMEOUT: "{{ radius_exporter_timeout }}"
+    ports:
+      - {{ radius_exporter_scrape_port }}:{{ radius_exporter_scrape_port }}
+    networks:
+      - back-tier
+{% endif %}
+{% if vpn_exporter_enable %}
+
+  vpn-exporter:
+    image: uxi/vpn-exporter:latest
+    build:
+      context: ./exporters/vpn
+    restart: always
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./exporters/vpn/config.yml:/app/config.yml:ro
+    environment:
+      EXPORTER_PORT: "{{ vpn_exporter_scrape_port }}"
+      EXPORTER_INTERVAL: "{{ vpn_exporter_interval }}"
+      EXPORTER_TIMEOUT: "{{ vpn_exporter_timeout }}"
+    ports:
+      - {{ vpn_exporter_scrape_port }}:{{ vpn_exporter_scrape_port }}
+    networks:
+      - back-tier
+{% endif %}
+{% if voip_quality_exporter_enable %}
+
+  voip-quality-exporter:
+    image: uxi/voip-quality-exporter:latest
+    build:
+      context: ./exporters/voip
+    restart: always
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./exporters/voip/config.yml:/app/config.yml:ro
+    environment:
+      EXPORTER_PORT: "{{ voip_quality_exporter_scrape_port }}"
+      EXPORTER_INTERVAL: "{{ voip_quality_exporter_interval }}"
+      EXPORTER_TIMEOUT: "{{ voip_quality_exporter_timeout }}"
+    ports:
+      - {{ voip_quality_exporter_scrape_port }}:{{ voip_quality_exporter_scrape_port }}
+    networks:
+      - back-tier
+{% endif %}

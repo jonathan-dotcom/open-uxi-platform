@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+interval: {{ radius_exporter_interval }}
+timeout: {{ radius_exporter_timeout }}
+targets:
+{% for target in radius_exporter_targets %}
+  - name: "{{ target.name }}"
+    address: "{{ target.address }}"
+    secret: "{{ target.secret }}"
+    username: "{{ target.username }}"
+    password: "{{ target.password }}"
+{% if target.nas_identifier is defined %}    nas_identifier: "{{ target.nas_identifier }}"
+{% endif %}{% if target.calling_station_id is defined %}    calling_station_id: "{{ target.calling_station_id }}"
+{% endif %}{% if target.interval is defined %}    interval: {{ target.interval }}
+{% endif %}{% if target.timeout is defined %}    timeout: {{ target.timeout }}
+{% endif %}{% endfor %}
