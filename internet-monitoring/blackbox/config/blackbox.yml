@@ -42,14 +42,6 @@ modules:
       query_type: A
       preferred_ip_protocol: "ip4"
       ip_protocol_fallback: false
-  dhcp_discovery:
-    prober: udp
-    timeout: 30s
-    udp:
-      preferred_ip_protocol: "ip4"
-      query_response:
-        - send: "010106000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-        - expect: "020106"
   captive_portal:
     prober: http
     timeout: 30s
@@ -58,7 +50,7 @@ modules:
       valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
       valid_status_codes: [200, 204, 302]
       follow_redirects: true
-      fail_if_body_not_matches:
+      fail_if_body_not_matches_regexp:
         - "(?i)success|connected|online"
       preferred_ip_protocol: "ip4"
       ip_protocol_fallback: true
@@ -71,8 +63,8 @@ modules:
       method: GET
       preferred_ip_protocol: "ip4"
       follow_redirects: true
-      fail_if_body_not_matches:
-        - "(?i)sign\s?in|dashboard|account"
+      fail_if_body_not_matches_regexp:
+        - '(?i)sign\s?in|dashboard|account'
       fail_if_body_matches_regexp:
-        - "(?i)service\s?unavailable"
+        - '(?i)service\s?unavailable'
       fail_if_not_ssl: false
