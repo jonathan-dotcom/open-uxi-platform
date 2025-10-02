@@ -28,6 +28,28 @@ Once configurations are done, run the following command:
 
 That's it. docker-compose builds the entire Grafana and Prometheus stack automagically.
 
+## Raspberry Pi sensor-only mode
+
+If you want the Raspberry Pi to run just the exporters (and move Prometheus/Grafana to
+another host), use the bundled sensor compose file:
+
+```bash
+cd internet-monitoring
+docker compose -f docker-compose.sensor.yml up -d
+```
+
+Node exporter runs in host networking so it can see all kernel counters, while the other
+exporters publish on their standard ports (`9115`, `9798`, `9812`, `9310`, `9899`). Optional
+exporters (RADIUS, VPN, VoIP) are disabled by default via Compose profiles; enable them only
+when you have valid configs, for example:
+
+```bash
+docker compose -f docker-compose.sensor.yml --profile radius up -d
+```
+
+After the sensor is online, point your remote Prometheus at the Pi’s reachable IP (e.g.
+its Tailscale address) on those ports so the dashboards populate.
+
 ## UXI-inspired synthetic workflows
 
 The stack now mirrors Aruba UXI synthetic workflows so you can benchmark multiple access layers with a single probe:

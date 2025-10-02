@@ -1,0 +1,89 @@
+version: "3.8"
+
+services:
+  ping:
+    image: prom/blackbox-exporter:latest
+    restart: always
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./blackbox/config:/config
+    ports:
+      - "9115:9115"
+    command:
+      - "--config.file=/config/blackbox.yml"
+
+  speedtest:
+    image: miguelndecarvalho/speedtest-exporter:latest
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://0.0.0.0:9798/"]
+      timeout: 10s
+    ports:
+      - "9798:9798"
+
+  nodeexp:
+    image: prom/node-exporter:latest
+    restart: always
+    privileged: true
+    pid: host
+    network_mode: host
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+
+  radius-exporter:
+    image: uxi/radius-exporter:latest
+    build:
+      context: ./exporters/radius
+    restart: always
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./exporters/radius/config.yml:/app/config.yml:ro
+    environment:
+      EXPORTER_PORT: "9812"
+      EXPORTER_INTERVAL: "60"
+      EXPORTER_TIMEOUT: "5"
+    ports:
+      - "9812:9812"
+    profiles: [radius]
+
+  vpn-exporter:
+    image: uxi/vpn-exporter:latest
+    build:
+      context: ./exporters/vpn
+    restart: always
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./exporters/vpn/config.yml:/app/config.yml:ro
+    environment:
+      EXPORTER_PORT: "9310"
+      EXPORTER_INTERVAL: "60"
+      EXPORTER_TIMEOUT: "5"
+    ports:
+      - "9310:9310"
+    profiles: [vpn]
+
+  voip-quality-exporter:
+    image: uxi/voip-quality-exporter:latest
+    build:
+      context: ./exporters/voip
+    restart: always
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./exporters/voip/config.yml:/app/config.yml:ro
+    environment:
+      EXPORTER_PORT: "9899"
+      EXPORTER_INTERVAL: "30"
+      EXPORTER_TIMEOUT: "5"
+    ports:
+      - "9899:9899"
+    profiles: [voip]
+
+profiles:
+  radius:
+  vpn:
+  voip:
