@@ -39,12 +39,16 @@ docker compose -f docker-compose.sensor.yml up -d
 ```
 
 Node exporter runs in host networking so it can see all kernel counters, while the other
-exporters publish on their standard ports (`9115`, `9798`, `9812`, `9310`, `9899`). Optional
-exporters (RADIUS, VPN, VoIP) are disabled by default via Compose profiles; enable them only
-when you have valid configs, for example:
+exporters publish on their standard ports (`9115`, `9798`).
+
+Need the optional Aruba-style exporters (RADIUS, VPN, VoIP)? Layer the add-on compose file
+when you launch:
 
 ```bash
-docker compose -f docker-compose.sensor.yml --profile radius up -d
+docker compose \
+  -f docker-compose.sensor.yml \
+  -f docker-compose.sensor.optional.yml \
+  up -d
 ```
 
 After the sensor is online, point your remote Prometheus at the Pi’s reachable IP (e.g.

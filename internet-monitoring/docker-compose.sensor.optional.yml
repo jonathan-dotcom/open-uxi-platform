@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  radius-exporter:
+    image: uxi/radius-exporter:latest
+    build:
+      context: ./exporters/radius
+    restart: always
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./exporters/radius/config.yml:/app/config.yml:ro
+    environment:
+      EXPORTER_PORT: "9812"
+      EXPORTER_INTERVAL: "60"
+      EXPORTER_TIMEOUT: "5"
+    ports:
+      - "9812:9812"
+
+  vpn-exporter:
+    image: uxi/vpn-exporter:latest
+    build:
+      context: ./exporters/vpn
+    restart: always
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./exporters/vpn/config.yml:/app/config.yml:ro
+    environment:
+      EXPORTER_PORT: "9310"
+      EXPORTER_INTERVAL: "60"
+      EXPORTER_TIMEOUT: "5"
+    ports:
+      - "9310:9310"
+
+  voip-quality-exporter:
+    image: uxi/voip-quality-exporter:latest
+    build:
+      context: ./exporters/voip
+    restart: always
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./exporters/voip/config.yml:/app/config.yml:ro
+    environment:
+      EXPORTER_PORT: "9899"
+      EXPORTER_INTERVAL: "30"
+      EXPORTER_TIMEOUT: "5"
+    ports:
+      - "9899:9899"
