@@ -6,3 +6,5 @@ monitoring_compose_files:
 # Populate this list with the sensor endpoints Prometheus should scrape.
 prometheus_node_exporter_targets: []
 prometheus_wifi_targets: "{{ groups['sensor'] | map('extract', hostvars, 'wifi_exporter_target') | select('defined') | reject('equalto', '') | list }}"
+docker_install_compose_plugin: false
+pihole_enable: false

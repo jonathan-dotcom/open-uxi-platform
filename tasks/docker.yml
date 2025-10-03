@@ -25,30 +25,31 @@
     state: started
     enabled: true
 
+- name: Build dependency list (Debian).
+  ansible.builtin.set_fact:
+    docker_debian_dependencies: >-
+      {{ ['libffi-dev', 'libssl-dev', 'python3-dev', 'python3-pip', 'git', 'rsync', 'resolvconf']
+         + ((docker_install_compose_plugin | default(true) | bool)
+            | ternary(['docker-compose-plugin'], [])) }}
+  when: ansible_facts.os_family == "Debian"
+
 - name: Ensure dependencies are installed (Debian).
   ansible.builtin.apt:
-    name:
-      - libffi-dev
-      - libssl-dev
-      - python3-dev
-      - python3-pip
-      - git
-      - rsync
-      - docker-compose-plugin
-      - resolvconf
+    name: "{{ docker_debian_dependencies }}"
     state: present
   when: ansible_facts.os_family == "Debian"
 
+- name: Build dependency list (Archlinux).
+  ansible.builtin.set_fact:
+    docker_arch_dependencies: >-
+      {{ ['libffi', 'openssl', 'base-devel', 'python-pip', 'git', 'rsync']
+         + ((docker_install_compose_plugin | default(true) | bool)
+            | ternary(['docker-compose-plugin'], [])) }}
+  when: ansible_facts.os_family == "Archlinux"
+
 - name: Ensure dependencies are installed (Archlinux).
   community.general.pacman:
-    name:
-      - libffi
-      - openssl
-      - base-devel
-      - python-pip
-      - git
-      - rsync
-      - docker-compose-plugin
+    name: "{{ docker_arch_dependencies }}"
     state: present
   when: ansible_facts.os_family == "Archlinux"
 
