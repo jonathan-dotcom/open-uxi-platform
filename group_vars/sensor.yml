@@ -4,3 +4,5 @@ monitoring_include_exporters: true
 monitoring_compose_files:
   - docker-compose.sensor.yml
 pihole_enable: false
+wifi_exporter_port: 9105
+wifi_exporter_target: "{{ (ansible_host | default(inventory_hostname)) ~ ':' ~ wifi_exporter_port }}"

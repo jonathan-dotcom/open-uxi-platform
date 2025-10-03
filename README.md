@@ -39,10 +39,12 @@ Replace the hostnames/IP addresses and users with values that work in your envir
 Group-specific settings live under `group_vars/`:
 
 - `group_vars/cloud.yml` keeps Prometheus and Grafana enabled and disables on-box exporters.
-  Add the Pi's metrics endpoints to `prometheus_node_exporter_targets` (and any other scrape
-  targets you need).
+  Populate `prometheus_node_exporter_targets` if you want Prometheus to scrape additional
+  node exporters, and override `prometheus_wifi_targets` if the auto-detected sensor address
+  list (built from the `wifi_exporter_target` variable on each sensor host) needs adjustment.
 - `group_vars/sensor.yml` runs only the exporter compose file and disables Prometheus/Grafana
-  and Pi-hole on the Pi.
+  and Pi-hole on the Pi. It defines `wifi_exporter_target`, which defaults to the host's
+  `ansible_host:9105` and is used by the cloud play to build the Wi-Fi exporter scrape job.
 
 Global defaults remain in `config.yml`; adjust ping hosts, DNS checks, or exporter settings as
 needed. Optional exporters (RADIUS, VPN, VoIP) are still controlled through the boolean flags

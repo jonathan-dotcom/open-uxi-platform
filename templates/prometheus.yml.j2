@@ -200,6 +200,12 @@ scrape_configs:
       - targets: ['pihole-exporter:9617']
 {% endif %}
 
+{% if prometheus_wifi_targets is defined and prometheus_wifi_targets %}
+  - job_name: 'wifi'
+    static_configs:
+      - targets: {{ prometheus_wifi_targets | to_json }}
+{% endif %}
+
 {% filter indent(width=2,first=True) %}
 {{ prometheus_extra_scrape_configs }}
 {% endfilter %}

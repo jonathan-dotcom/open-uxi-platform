@@ -51,10 +51,8 @@ monitoring_saas_journeys:
 prometheus_monitor_prometheus: false
 prometheus_node_exporter_targets:
   - 'nodeexp:9100'
-prometheus_extra_scrape_configs: |
-  - job_name: wifi
-    static_configs:
-      - targets: ['192.168.28.123:9105']
+prometheus_wifi_targets: []
+prometheus_extra_scrape_configs: ''
 prometheus_tsdb_retention_time: 90d
 
 # Shelly Plug configuration. (Also requires `monitoring_enable`)

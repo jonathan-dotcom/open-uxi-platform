@@ -71,12 +71,22 @@
 
 - name: Determine compose files to apply.
   ansible.builtin.set_fact:
-    monitoring_compose_files_resolved: {{ (monitoring_compose_files | default(['docker-compose.yml']) | list) + (['docker-compose.sensor.optional.yml'] if ((radius_exporter_enable | default(false)) or (vpn_exporter_enable | default(false)) or (voip_quality_exporter_enable | default(false))) and ('docker-compose.sensor.yml' in (monitoring_compose_files | default(['docker-compose.yml']))) else []) }}
+    monitoring_compose_files_resolved: "{{ monitoring_compose_files | default(['docker-compose.yml']) | list }}"
+  become: false
+
+- name: Append sensor optional exporters compose file when required.
+  ansible.builtin.set_fact:
+    monitoring_compose_files_resolved: "{{ (monitoring_compose_files_resolved + ['docker-compose.sensor.optional.yml']) | list }}"
+  when:
+    - (radius_exporter_enable | default(false))
+      or (vpn_exporter_enable | default(false))
+      or (voip_quality_exporter_enable | default(false))
+    - 'docker-compose.sensor.yml' in (monitoring_compose_files_resolved | list)
   become: false
 
 - name: Ensure internet-monitoring environment is running.
   community.docker.docker_compose_v2:
     project_src: "{{ config_dir }}/internet-monitoring/"
     build: "{{ 'always' if (radius_exporter_enable | default(false)) or (vpn_exporter_enable | default(false)) or (voip_quality_exporter_enable | default(false)) else 'never' }}"
-    files: {{ monitoring_compose_files_resolved }}
+    files: "{{ monitoring_compose_files_resolved | list }}"
   become: false
