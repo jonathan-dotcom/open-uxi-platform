@@ -22,10 +22,10 @@ scrape_configs:
     scrape_interval: {{ monitoring_speedtest_interval }}
     scrape_timeout: 60s  # running speedtest needs time to complete
     static_configs:
-      {% set speedtest_targets = prometheus_speedtest_targets | default(['speedtest:9798']) %}
-      {% for target in speedtest_targets %}
-      - targets: ['{{ target }}']
-      {% endfor %}
+{% set derived_speedtest_targets = groups.get('sensor', []) | map('extract', hostvars, 'speedtest_exporter_target') | select('defined') | reject('equalto', '') | list %}
+{% set speedtest_targets = prometheus_speedtest_targets | default(derived_speedtest_targets) %}
+{% if not speedtest_targets %}{% set speedtest_targets = ['speedtest:9798'] %}{% endif %}
+      - targets: {{ speedtest_targets | to_json }}
 
 {% if shelly_plug_enable %}
   - job_name: 'shelly-plug'

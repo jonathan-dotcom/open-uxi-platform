@@ -55,8 +55,6 @@ docker_install_compose_plugin: false
 prometheus_monitor_prometheus: false
 prometheus_node_exporter_targets:
   - 'nodeexp:9100'
-prometheus_speedtest_targets:
-  - 'speedtest:9798'
 prometheus_extra_scrape_configs: ''
 prometheus_tsdb_retention_time: 90d
 
