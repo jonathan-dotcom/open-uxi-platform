@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+"""
+Prometheus Wi-Fi exporter.
+Detects RSSI and Tx bitrate using `iw`.
+Interface auto-detected unless WIFI_IFACE env or CLI argument provided.
+"""
+import os
+import re
+import subprocess
+import sys
+import time
+from prometheus_client import Gauge, start_http_server
+
+iface = os.getenv("WIFI_IFACE") or (sys.argv[1] if len(sys.argv) > 1 else "{{ wifi_exporter_iface | default('') }}")
+if not iface:
+    output = subprocess.check_output(["iw", "dev"], text=True)
+    match = re.search(r"Interface\s+(\w+)", output)
+    if not match:
+        raise SystemExit("Could not determine Wi-Fi interface; set WIFI_IFACE or pass as argument")
+    iface = match.group(1)
+
+RSSI = Gauge("wifi_signal_dbm", "Wi-Fi signal strength (dBm)")
+TX_RATE = Gauge("wifi_tx_rate_mbps", "Wi-Fi transmit bitrate (Mbps)")
+
+SIGNAL_RE = re.compile(r"signal(?:\s+avg)?:\s*(-?\d+(?:\.\d+)?)\s*dBm", re.I)
+TX_RE = re.compile(r"tx\s+bitrate:\s*([\d.]+)", re.I)
+
+start_http_server({{ wifi_exporter_port }})
+
+while True:
+    try:
+        output = subprocess.check_output(["iw", "dev", iface, "link"], text=True)
+    except subprocess.CalledProcessError:
+        output = "Not connected."
+
+    if "Not connected." in output:
+        RSSI.set(0)
+        TX_RATE.set(0)
+    else:
+        signal_match = SIGNAL_RE.search(output)
+        if signal_match:
+            RSSI.set(float(signal_match.group(1)))
+        tx_match = TX_RE.search(output)
+        if tx_match:
+            TX_RATE.set(float(tx_match.group(1)))
+    time.sleep(15)

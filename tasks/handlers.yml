@@ -26,3 +26,9 @@
     build: never
     state: restarted
   become: false
+
+- name: Restart wifi exporter
+  ansible.builtin.systemd:
+    name: wifi_exporter
+    state: restarted
+    daemon_reload: true

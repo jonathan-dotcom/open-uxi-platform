@@ -1,0 +1,12 @@
+[Unit]
+Description=Prometheus Wi-Fi exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/python3 /usr/local/bin/wifi_exporter.py{% if wifi_exporter_iface %} {{ wifi_exporter_iface }}{% endif %}
+
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

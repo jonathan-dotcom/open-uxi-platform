@@ -59,6 +59,7 @@ prometheus_wifi_targets: []
 prometheus_extra_scrape_configs: ''
 prometheus_tsdb_retention_time: 90d
 
+
 # Shelly Plug configuration. (Also requires `monitoring_enable`)
 shelly_plug_enable: false
 shelly_plug_hostname: my-shelly-plug-host-or-ip

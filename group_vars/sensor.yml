@@ -6,5 +6,7 @@ monitoring_compose_files:
 pihole_enable: false
 wifi_exporter_port: 9105
 wifi_exporter_target: "{{ (ansible_host | default(inventory_hostname)) ~ ':' ~ wifi_exporter_port }}"
+wifi_exporter_enable: true
+wifi_exporter_iface: ''
 
 docker_install_compose_plugin: true

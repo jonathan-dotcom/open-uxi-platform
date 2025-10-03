@@ -43,8 +43,10 @@ Group-specific settings live under `group_vars/`:
   node exporters, and override `prometheus_wifi_targets` if the auto-detected sensor address
   list (built from the `wifi_exporter_target` variable on each sensor host) needs adjustment.
 - `group_vars/sensor.yml` runs only the exporter compose file and disables Prometheus/Grafana
-  and Pi-hole on the Pi. It defines `wifi_exporter_target`, which defaults to the host's
-  `ansible_host:9105` and is used by the cloud play to build the Wi-Fi exporter scrape job.
+  and Pi-hole on the Pi. It also enables the Wi-Fi systemd exporter (`wifi_exporter_enable`),
+  which auto-detects the radio interface and serves metrics on `wifi_exporter_port` (defaults
+  to 9105). Override `wifi_exporter_iface` if your wireless interface is not auto-detected;
+  the cloud play uses `wifi_exporter_target` to populate the Wi-Fi scrape job automatically.
 
 Global defaults remain in `config.yml`; adjust ping hosts, DNS checks, or exporter settings as
 needed. Optional exporters (RADIUS, VPN, VoIP) are still controlled through the boolean flags
