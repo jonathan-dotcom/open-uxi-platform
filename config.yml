@@ -18,6 +18,11 @@ pihole_password: "change-this-password"
 # Internet monitoring configuration.
 monitoring_enable: true
 monitoring_grafana_admin_password: "admin"
+monitoring_include_prometheus: true
+monitoring_include_grafana: true
+monitoring_include_exporters: true
+monitoring_compose_files:
+  - docker-compose.yml
 monitoring_speedtest_interval: 30m
 monitoring_ping_interval: 5s
 monitoring_ping_hosts:

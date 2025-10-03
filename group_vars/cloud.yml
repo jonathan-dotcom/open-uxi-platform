@@ -1,0 +1,7 @@
+monitoring_include_prometheus: true
+monitoring_include_grafana: true
+monitoring_include_exporters: false
+monitoring_compose_files:
+  - docker-compose.yml
+# Populate this list with the sensor endpoints Prometheus should scrape.
+prometheus_node_exporter_targets: []

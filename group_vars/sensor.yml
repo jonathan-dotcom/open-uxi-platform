@@ -1,0 +1,6 @@
+monitoring_include_prometheus: false
+monitoring_include_grafana: false
+monitoring_include_exporters: true
+monitoring_compose_files:
+  - docker-compose.sensor.yml
+pihole_enable: false

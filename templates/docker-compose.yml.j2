@@ -25,6 +25,7 @@ services:
       - /var/run/docker.sock:/tmp/docker.sock:ro
 {% endif %}
 
+{% if monitoring_include_prometheus %}
   prometheus:
     image: prom/prometheus:latest
     restart: always
@@ -40,6 +41,7 @@ services:
       - '--web.console.templates=/usr/share/prometheus/consoles'
     ports:
       - 9090:9090
+{% if monitoring_include_exporters %}
     links:
       - ping:ping
       - speedtest:speedtest
@@ -52,6 +54,7 @@ services:
 {% if voip_quality_exporter_enable %}
       - voip-quality-exporter:voip-quality-exporter
 {% endif %}
+{% endif %}
     networks:
       - back-tier
 {% if domain_name_enable and domain_name and domain_prometheus %}
@@ -61,7 +64,9 @@ services:
       - VIRTUAL_HOST={{ domain_prometheus }}.{{ domain_name }}
       - VIRTUAL_PORT=9090
 {% endif %}
+{% endif %}
 
+{% if monitoring_include_grafana %}
   grafana:
     image: grafana/grafana:latest
     restart: always
@@ -76,15 +81,19 @@ services:
     networks:
       - back-tier
       - front-tier
+{% if monitoring_include_prometheus %}
     depends_on:
       - prometheus
+{% endif %}
 {% if domain_name_enable and domain_name and domain_grafana %}
       - nginx-proxy
     environment:
       - VIRTUAL_HOST={{ domain_grafana }}.{{ domain_name }}
       - VIRTUAL_PORT=3000
 {% endif %}
+{% endif %}
 
+{% if monitoring_include_exporters %}
   ping:
     image: prom/blackbox-exporter:latest
     restart: always
@@ -189,4 +198,5 @@ services:
       - {{ voip_quality_exporter_scrape_port }}:{{ voip_quality_exporter_scrape_port }}
     networks:
       - back-tier
+{% endif %}
 {% endif %}
