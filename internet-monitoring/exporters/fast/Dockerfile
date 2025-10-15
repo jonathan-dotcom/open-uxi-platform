@@ -1,0 +1,22 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package.json ./
+RUN npm install --production && npm cache clean --force
+
+COPY server.js ./
+
+ENV FAST_EXPORTER_PORT=9801 \
+    FAST_EXPORTER_TIMEOUT=180 \
+    FAST_EXPORTER_SAMPLE_TTL=600 \
+    FAST_EXPORTER_FORCE_RUN=false \
+    FAST_EXPORTER_TOKEN=YXNkZmFzZGxmbnNkYWZoYXNkZmhrYWxm \
+    FAST_EXPORTER_URL_COUNT=5 \
+    FAST_EXPORTER_CONCURRENCY=3 \
+    FAST_EXPORTER_RUN_DURATION=15 \
+    FAST_EXPORTER_LATENCY_SAMPLES=5
+
+EXPOSE 9801
+
+CMD ["node", "server.js"]

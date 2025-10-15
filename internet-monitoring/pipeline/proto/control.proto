@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package openuxi.pipeline.control;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/open-uxi/platform/pipeline/controlpb";
+
+// Envelope wraps all control-plane messages that travel over the persistent
+// outbound channel from sensor to server.
+message Envelope {
+  string schema_version = 1;
+  string sensor_id = 2;
+  google.protobuf.Timestamp sent_at = 3;
+  repeated string capabilities = 4;
+
+  oneof body {
+    Heartbeat heartbeat = 10;
+    ChunkRequest chunk_request = 11;
+    ChunkAck chunk_ack = 12;
+    CommandResponse command_response = 13;
+  }
+}
+
+// Sensor-to-server heartbeat for liveness and metadata.
+message Heartbeat {
+  string software_version = 1;
+  uint64 last_committed_sequence = 2;
+  uint64 queue_depth = 3;
+  double clock_skew_ms = 4;
+}
+
+// Server-to-sensor request that instructs a sensor which chunks to send.
+message ChunkRequest {
+  uint64 since_sequence = 1;
+  uint32 max_chunks = 2;
+  uint64 max_bytes = 3;
+  string window_id = 4;
+  uint32 max_in_flight = 5;
+}
+
+// Server ack for previously delivered chunks.
+message ChunkAck {
+  string window_id = 1;
+  repeated uint64 committed_sequences = 2;
+  bool reset_window = 3;
+}
+
+// Response to direct commands (e.g., configuration push).
+message CommandResponse {
+  string command_id = 1;
+  bool success = 2;
+  string message = 3;
+}

@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package openuxi.pipeline.data;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/open-uxi/platform/pipeline/datapb";
+
+// A single compressed data chunk emitted by a sensor.
+message Chunk {
+  string schema_version = 1;
+  string sensor_id = 2;
+  string event_id = 3;
+  uint64 sequence = 4;
+  uint32 chunk_index = 5;
+  uint32 chunk_count = 6;
+  string compression = 7;
+  bytes payload = 8;
+  bytes chunk_sha256 = 9;
+  bytes event_sha256 = 10;
+  google.protobuf.Timestamp created_at = 11;
+  uint64 logical_timestamp_ms = 12;
+  double clock_skew_ms = 13;
+  map<string, string> attributes = 14;
+}
+
+// Server ack for an individual chunk.
+message ChunkAck {
+  string event_id = 1;
+  uint64 sequence = 2;
+  string ack_token = 3;
+}

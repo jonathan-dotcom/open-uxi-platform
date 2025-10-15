@@ -4,8 +4,16 @@ monitoring_include_exporters: false
 monitoring_compose_files:
   - docker-compose.yml
 # Populate this list with the sensor endpoints Prometheus should scrape.
-prometheus_node_exporter_targets: []
-prometheus_wifi_targets: "{{ groups['sensor'] | map('extract', hostvars, 'wifi_exporter_target') | select('defined') | reject('equalto', '') | list }}"
-prometheus_speedtest_targets: "{{ groups['sensor'] | map('extract', hostvars, 'speedtest_exporter_target') | select('defined') | reject('equalto', '') | list }}"
+prometheus_node_exporter_targets_cloud: []
+prometheus_wifi_targets: []
+prometheus_speedtest_targets: []
 docker_install_compose_plugin: false
 pihole_enable: false
+prometheus_remote_write_receiver_enable_cloud: true
+prometheus_enable_local_synthetics_cloud: false
+
+pipeline_server_enable_host: true
+pipeline_server_stream_token_host: "85ac34f3605acffbbc5e7fe4efe1d289"
+pipeline_server_auth_sensors_host:
+  - id: "dti"
+    token: "b4e670ab73995da3c6db79756c271239"

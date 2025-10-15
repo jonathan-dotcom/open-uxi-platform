@@ -1,0 +1,18 @@
+version: "3.8"
+
+volumes:
+  pipeline_sensor_data:
+
+services:
+  pipeline-agent:
+    build:
+      context: .
+      dockerfile: pipeline/docker/sensor.Dockerfile
+    restart: always
+    network_mode: host
+    environment:
+      - PIPELINE_CONFIG=/config/sensor.yml
+    volumes:
+      - ./pipeline/config/sensor.yml:/config/sensor.yml:ro
+      - ./pipeline/tls:/tls:ro
+      - pipeline_sensor_data:/var/lib/pipeline

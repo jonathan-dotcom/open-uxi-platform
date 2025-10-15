@@ -17,15 +17,26 @@ scrape_configs:
       - targets: ['localhost:9090']
 {% endif %}
 
+{% set derived_speedtest_targets = groups.get('sensor', []) | map('extract', hostvars, 'speedtest_exporter_target') | select('defined') | reject('equalto', '') | list %}
+{% set speedtest_targets = prometheus_speedtest_targets | default(derived_speedtest_targets, true) %}
+{% if not speedtest_targets %}{% set speedtest_targets = ['speedtest:9798'] %}{% endif %}
+{% if speedtest_targets %}
   - job_name: 'speedtest'
     metrics_path: /metrics
     scrape_interval: {{ monitoring_speedtest_interval }}
     scrape_timeout: 60s  # running speedtest needs time to complete
     static_configs:
-{% set derived_speedtest_targets = groups.get('sensor', []) | map('extract', hostvars, 'speedtest_exporter_target') | select('defined') | reject('equalto', '') | list %}
-{% set speedtest_targets = prometheus_speedtest_targets | default(derived_speedtest_targets) %}
-{% if not speedtest_targets %}{% set speedtest_targets = ['speedtest:9798'] %}{% endif %}
       - targets: {{ speedtest_targets | to_json }}
+{% endif %}
+
+{% if prometheus_fast_targets is defined and prometheus_fast_targets %}
+  - job_name: 'fast-com'
+    metrics_path: /metrics
+    scrape_interval: {{ monitoring_speedtest_interval }}
+    scrape_timeout: 180s
+    static_configs:
+      - targets: {{ prometheus_fast_targets | to_json }}
+{% endif %}
 
 {% if shelly_plug_enable %}
   - job_name: 'shelly-plug'
@@ -52,6 +63,30 @@ scrape_configs:
       - targets: ['172.17.0.1:9817']
 {% endif %}
 
+{% if (prometheus_enable_local_synthetics | default(true) | bool) and monitoring_icmp_targets is defined and monitoring_icmp_targets %}
+  - job_name: 'icmp'
+    metrics_path: /probe
+    scrape_interval: {{ monitoring_ping_interval }}
+    params:
+      module: [icmp]
+    static_configs:
+{% for entry in monitoring_icmp_targets %}
+      - targets: ['{{ entry.split(';')[0] }}']
+        labels:
+          humanname: '{{ entry.split(';')[1] | replace("'", "\'") }}'
+{% endfor %}
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - source_labels: [humanname]
+        target_label: humanname
+      - target_label: __address__
+        replacement: ping:9115
+{% endif %}
+
+{% if prometheus_enable_local_synthetics | default(true) | bool %}
   - job_name: 'ping'
     metrics_path: /probe
     scrape_interval: {{ monitoring_ping_interval }}
@@ -73,8 +108,9 @@ scrape_configs:
         target_label: __param_target
       - target_label: __address__
         replacement: ping:9115  # The blackbox exporter's real hostname:port.
+{% endif %}
 
-{% if monitoring_dns_checks is defined and monitoring_dns_checks %}
+{% if (prometheus_enable_local_synthetics | default(true) | bool) and monitoring_dns_checks is defined and monitoring_dns_checks %}
   - job_name: 'dns-synthetics'
     metrics_path: /probe
     scrape_interval: {{ monitoring_dns_interval }}
@@ -97,7 +133,7 @@ scrape_configs:
         replacement: ping:9115
 {% endif %}
 
-{% if monitoring_dhcp_servers is defined and monitoring_dhcp_servers %}
+{% if (prometheus_enable_local_synthetics | default(true) | bool) and monitoring_dhcp_servers is defined and monitoring_dhcp_servers %}
   - job_name: 'dhcp-synthetics'
     metrics_path: /probe
     scrape_interval: {{ monitoring_dhcp_interval }}
@@ -120,7 +156,7 @@ scrape_configs:
         replacement: ping:9115
 {% endif %}
 
-{% if monitoring_captive_portal_checks is defined and monitoring_captive_portal_checks %}
+{% if (prometheus_enable_local_synthetics | default(true) | bool) and monitoring_captive_portal_checks is defined and monitoring_captive_portal_checks %}
   - job_name: 'captive-portal'
     metrics_path: /probe
     scrape_interval: {{ monitoring_captive_portal_interval }}
@@ -143,7 +179,7 @@ scrape_configs:
         replacement: ping:9115
 {% endif %}
 
-{% if monitoring_saas_journeys is defined and monitoring_saas_journeys %}
+{% if (prometheus_enable_local_synthetics | default(true) | bool) and monitoring_saas_journeys is defined and monitoring_saas_journeys %}
   - job_name: 'saas-journeys'
     metrics_path: /probe
     scrape_interval: {{ monitoring_saas_interval }}
@@ -166,9 +202,11 @@ scrape_configs:
         replacement: ping:9115
 {% endif %}
 
+{% if prometheus_node_exporter_targets is defined and prometheus_node_exporter_targets %}
   - job_name: 'node'
     static_configs:
       - targets: {{ prometheus_node_exporter_targets | to_yaml }}
+{% endif %}
 
 {% if radius_exporter_enable %}
   - job_name: 'radius-exporter'

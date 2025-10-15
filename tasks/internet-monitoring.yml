@@ -27,6 +27,60 @@
     state: absent
   become: false
 
+- name: Enable Prometheus remote write when host-specific override is set.
+  ansible.builtin.set_fact:
+    prometheus_remote_write_enable: "{{ prometheus_remote_write_enable_sensor | bool }}"
+  when: prometheus_remote_write_enable_sensor is defined
+  become: false
+
+- name: Override Prometheus remote write URL when host-specific value is provided.
+  ansible.builtin.set_fact:
+    prometheus_remote_write_url: "{{ prometheus_remote_write_url_sensor }}"
+  when: prometheus_remote_write_url_sensor is defined
+  become: false
+
+- name: Enable Prometheus remote write receiver when host-specific override is set.
+  ansible.builtin.set_fact:
+    prometheus_remote_write_receiver_enable: "{{ prometheus_remote_write_receiver_enable_cloud | bool }}"
+  when: prometheus_remote_write_receiver_enable_cloud is defined
+  become: false
+
+- name: Disable local synthetic scrapes when host-specific override is set.
+  ansible.builtin.set_fact:
+    prometheus_enable_local_synthetics: "{{ prometheus_enable_local_synthetics_cloud | bool }}"
+  when: prometheus_enable_local_synthetics_cloud is defined
+  become: false
+
+- name: Override Prometheus node exporter targets when host-specific value is provided.
+  ansible.builtin.set_fact:
+    prometheus_node_exporter_targets: "{{ prometheus_node_exporter_targets_cloud | to_json | from_json }}"
+  when: prometheus_node_exporter_targets_cloud is defined
+  become: false
+
+- name: Override monitoring compose files when host-specific value is provided.
+  ansible.builtin.set_fact:
+    monitoring_compose_files: "{{ monitoring_compose_files_sensor | to_json | from_json }}"
+  when: monitoring_compose_files_sensor is defined
+  become: false
+
+- name: Override sensor pipeline settings when host-specific values are provided.
+  ansible.builtin.set_fact:
+    pipeline_sensor_enable: "{{ pipeline_sensor_enable_host | bool }}"
+    pipeline_sensor_id: "{{ pipeline_sensor_id_host }}"
+    pipeline_sensor_token: "{{ pipeline_sensor_token_host }}"
+    pipeline_sensor_control_url: "{{ pipeline_sensor_control_url_host }}"
+    pipeline_sensor_ingest_url: "{{ pipeline_sensor_ingest_url_host }}"
+  when: pipeline_sensor_enable_host is defined
+  become: false
+
+- name: Override server pipeline settings when host-specific values are provided.
+  ansible.builtin.set_fact:
+    pipeline_server_enable: "{{ pipeline_server_enable_host | bool }}"
+    pipeline_server_stream_token: "{{ pipeline_server_stream_token_host }}"
+    pipeline_server_auth_sensors: "{{ pipeline_server_auth_sensors_host | to_json | from_json }}"
+  when: pipeline_server_enable_host is defined
+  become: false
+
 - name: Copy templated internet-monitoring files into place.
   ansible.builtin.template:
     src: templates/{{ item.src }}
@@ -41,6 +95,239 @@
       dest: prometheus/prometheus.yml
     - src: prometheus-pinghosts.yaml.j2
       dest: prometheus/pinghosts.yaml
+  notify: Restart internet-monitoring
+  become: false
+
+- name: Evaluate pipeline deployment settings.
+  ansible.builtin.set_fact:
+    pipeline_runtime_enable: "{{ (pipeline_sensor_enable | default(false)) or (pipeline_server_enable | default(false)) }}"
+    pipeline_base_dir: "{{ config_dir }}/internet-monitoring/pipeline"
+    pipeline_config_dir: "{{ config_dir }}/internet-monitoring/pipeline/config"
+    pipeline_tls_dir: "{{ config_dir }}/internet-monitoring/pipeline/tls"
+    pipeline_sensor_control_tls_ca_file: "/tls/control-ca.pem"
+    pipeline_sensor_control_tls_ca_dest: "{{ config_dir }}/internet-monitoring/pipeline/tls/control-ca.pem"
+    pipeline_sensor_control_tls_cert_file: "/tls/sensor-control.crt"
+    pipeline_sensor_control_tls_cert_dest: "{{ config_dir }}/internet-monitoring/pipeline/tls/sensor-control.crt"
+    pipeline_sensor_control_tls_key_file: "/tls/sensor-control.key"
+    pipeline_sensor_control_tls_key_dest: "{{ config_dir }}/internet-monitoring/pipeline/tls/sensor-control.key"
+    pipeline_sensor_ingest_tls_ca_file: "/tls/ingest-ca.pem"
+    pipeline_sensor_ingest_tls_ca_dest: "{{ config_dir }}/internet-monitoring/pipeline/tls/ingest-ca.pem"
+    pipeline_sensor_ingest_tls_cert_file: "/tls/sensor-ingest.crt"
+    pipeline_sensor_ingest_tls_cert_dest: "{{ config_dir }}/internet-monitoring/pipeline/tls/sensor-ingest.crt"
+    pipeline_sensor_ingest_tls_key_file: "/tls/sensor-ingest.key"
+    pipeline_sensor_ingest_tls_key_dest: "{{ config_dir }}/internet-monitoring/pipeline/tls/sensor-ingest.key"
+    pipeline_server_control_tls_cert_file: "/tls/control.crt"
+    pipeline_server_control_tls_cert_dest: "{{ config_dir }}/internet-monitoring/pipeline/tls/control.crt"
+    pipeline_server_control_tls_key_file: "/tls/control.key"
+    pipeline_server_control_tls_key_dest: "{{ config_dir }}/internet-monitoring/pipeline/tls/control.key"
+    pipeline_server_control_tls_client_ca_file: "/tls/control-ca.pem"
+    pipeline_server_control_tls_client_ca_dest: "{{ config_dir }}/internet-monitoring/pipeline/tls/control-ca.pem"
+    pipeline_server_ingest_tls_cert_file: "/tls/ingest.crt"
+    pipeline_server_ingest_tls_cert_dest: "{{ config_dir }}/internet-monitoring/pipeline/tls/ingest.crt"
+    pipeline_server_ingest_tls_key_file: "/tls/ingest.key"
+    pipeline_server_ingest_tls_key_dest: "{{ config_dir }}/internet-monitoring/pipeline/tls/ingest.key"
+    pipeline_server_ingest_tls_client_ca_file: "/tls/ingest-ca.pem"
+    pipeline_server_ingest_tls_client_ca_dest: "{{ config_dir }}/internet-monitoring/pipeline/tls/ingest-ca.pem"
+    pipeline_server_stream_tls_cert_file: "/tls/stream.crt"
+    pipeline_server_stream_tls_cert_dest: "{{ config_dir }}/internet-monitoring/pipeline/tls/stream.crt"
+    pipeline_server_stream_tls_key_file: "/tls/stream.key"
+    pipeline_server_stream_tls_key_dest: "{{ config_dir }}/internet-monitoring/pipeline/tls/stream.key"
+    pipeline_server_stream_tls_client_ca_file: "/tls/stream-ca.pem"
+    pipeline_server_stream_tls_client_ca_dest: "{{ config_dir }}/internet-monitoring/pipeline/tls/stream-ca.pem"
+  become: false
+
+- name: Ensure pipeline directories exist when enabled.
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ pipeline_base_dir }}", mode: "0755" }
+    - { path: "{{ pipeline_config_dir }}", mode: "0755" }
+    - { path: "{{ pipeline_tls_dir }}", mode: "0700" }
+  when: pipeline_runtime_enable | default(false)
+  become: false
+
+- name: Install sensor control CA bundle.
+  ansible.builtin.copy:
+    dest: "{{ pipeline_sensor_control_tls_ca_dest }}"
+    content: "{{ pipeline_sensor_control_tls_ca_content }}"
+    mode: "0644"
+  when:
+    - pipeline_sensor_enable | default(false)
+    - pipeline_sensor_control_tls_enable | default(false)
+    - (pipeline_sensor_control_tls_ca_content | default('')) | length > 0
+  become: false
+
+- name: Install sensor control client certificate.
+  ansible.builtin.copy:
+    dest: "{{ pipeline_sensor_control_tls_cert_dest }}"
+    content: "{{ pipeline_sensor_control_tls_cert_content }}"
+    mode: "0644"
+  when:
+    - pipeline_sensor_enable | default(false)
+    - pipeline_sensor_control_tls_enable | default(false)
+    - (pipeline_sensor_control_tls_cert_content | default('')) | length > 0
+  become: false
+
+- name: Install sensor control client key.
+  ansible.builtin.copy:
+    dest: "{{ pipeline_sensor_control_tls_key_dest }}"
+    content: "{{ pipeline_sensor_control_tls_key_content }}"
+    mode: "0600"
+  when:
+    - pipeline_sensor_enable | default(false)
+    - pipeline_sensor_control_tls_enable | default(false)
+    - (pipeline_sensor_control_tls_key_content | default('')) | length > 0
+  become: false
+
+- name: Install sensor ingest CA bundle.
+  ansible.builtin.copy:
+    dest: "{{ pipeline_sensor_ingest_tls_ca_dest }}"
+    content: "{{ pipeline_sensor_ingest_tls_ca_content }}"
+    mode: "0644"
+  when:
+    - pipeline_sensor_enable | default(false)
+    - pipeline_sensor_ingest_tls_enable | default(false)
+    - (pipeline_sensor_ingest_tls_ca_content | default('')) | length > 0
+  become: false
+
+- name: Install sensor ingest client certificate.
+  ansible.builtin.copy:
+    dest: "{{ pipeline_sensor_ingest_tls_cert_dest }}"
+    content: "{{ pipeline_sensor_ingest_tls_cert_content }}"
+    mode: "0644"
+  when:
+    - pipeline_sensor_enable | default(false)
+    - pipeline_sensor_ingest_tls_enable | default(false)
+    - (pipeline_sensor_ingest_tls_cert_content | default('')) | length > 0
+  become: false
+
+- name: Install sensor ingest client key.
+  ansible.builtin.copy:
+    dest: "{{ pipeline_sensor_ingest_tls_key_dest }}"
+    content: "{{ pipeline_sensor_ingest_tls_key_content }}"
+    mode: "0600"
+  when:
+    - pipeline_sensor_enable | default(false)
+    - pipeline_sensor_ingest_tls_enable | default(false)
+    - (pipeline_sensor_ingest_tls_key_content | default('')) | length > 0
+  become: false
+
+- name: Install server control TLS certificate.
+  ansible.builtin.copy:
+    dest: "{{ pipeline_server_control_tls_cert_dest }}"
+    content: "{{ pipeline_server_control_tls_cert_content }}"
+    mode: "0644"
+  when:
+    - pipeline_server_enable | default(false)
+    - pipeline_server_control_tls_enable | default(false)
+    - (pipeline_server_control_tls_cert_content | default('')) | length > 0
+  become: false
+
+- name: Install server control TLS key.
+  ansible.builtin.copy:
+    dest: "{{ pipeline_server_control_tls_key_dest }}"
+    content: "{{ pipeline_server_control_tls_key_content }}"
+    mode: "0600"
+  when:
+    - pipeline_server_enable | default(false)
+    - pipeline_server_control_tls_enable | default(false)
+    - (pipeline_server_control_tls_key_content | default('')) | length > 0
+  become: false
+
+- name: Install server control client CA bundle.
+  ansible.builtin.copy:
+    dest: "{{ pipeline_server_control_tls_client_ca_dest }}"
+    content: "{{ pipeline_server_control_tls_client_ca_content }}"
+    mode: "0644"
+  when:
+    - pipeline_server_enable | default(false)
+    - pipeline_server_control_tls_enable | default(false)
+    - (pipeline_server_control_tls_client_ca_content | default('')) | length > 0
+  become: false
+
+- name: Install server ingest TLS certificate.
+  ansible.builtin.copy:
+    dest: "{{ pipeline_server_ingest_tls_cert_dest }}"
+    content: "{{ pipeline_server_ingest_tls_cert_content }}"
+    mode: "0644"
+  when:
+    - pipeline_server_enable | default(false)
+    - pipeline_server_ingest_tls_enable | default(false)
+    - (pipeline_server_ingest_tls_cert_content | default('')) | length > 0
+  become: false
+
+- name: Install server ingest TLS key.
+  ansible.builtin.copy:
+    dest: "{{ pipeline_server_ingest_tls_key_dest }}"
+    content: "{{ pipeline_server_ingest_tls_key_content }}"
+    mode: "0600"
+  when:
+    - pipeline_server_enable | default(false)
+    - pipeline_server_ingest_tls_enable | default(false)
+    - (pipeline_server_ingest_tls_key_content | default('')) | length > 0
+  become: false
+
+- name: Install server ingest client CA bundle.
+  ansible.builtin.copy:
+    dest: "{{ pipeline_server_ingest_tls_client_ca_dest }}"
+    content: "{{ pipeline_server_ingest_tls_client_ca_content }}"
+    mode: "0644"
+  when:
+    - pipeline_server_enable | default(false)
+    - pipeline_server_ingest_tls_enable | default(false)
+    - (pipeline_server_ingest_tls_client_ca_content | default('')) | length > 0
+  become: false
+
+- name: Install server stream TLS certificate.
+  ansible.builtin.copy:
+    dest: "{{ pipeline_server_stream_tls_cert_dest }}"
+    content: "{{ pipeline_server_stream_tls_cert_content }}"
+    mode: "0644"
+  when:
+    - pipeline_server_enable | default(false)
+    - pipeline_server_stream_tls_enable | default(false)
+    - (pipeline_server_stream_tls_cert_content | default('')) | length > 0
+  become: false
+
+- name: Install server stream TLS key.
+  ansible.builtin.copy:
+    dest: "{{ pipeline_server_stream_tls_key_dest }}"
+    content: "{{ pipeline_server_stream_tls_key_content }}"
+    mode: "0600"
+  when:
+    - pipeline_server_enable | default(false)
+    - pipeline_server_stream_tls_enable | default(false)
+    - (pipeline_server_stream_tls_key_content | default('')) | length > 0
+  become: false
+
+- name: Install server stream client CA bundle.
+  ansible.builtin.copy:
+    dest: "{{ pipeline_server_stream_tls_client_ca_dest }}"
+    content: "{{ pipeline_server_stream_tls_client_ca_content }}"
+    mode: "0644"
+  when:
+    - pipeline_server_enable | default(false)
+    - pipeline_server_stream_tls_enable | default(false)
+    - (pipeline_server_stream_tls_client_ca_content | default('')) | length > 0
+  become: false
+
+- name: Render sensor pipeline configuration.
+  ansible.builtin.template:
+    src: templates/pipeline-sensor.yml.j2
+    dest: "{{ pipeline_config_dir }}/sensor.yml"
+    mode: 0600
+  when: pipeline_sensor_enable | default(false)
+  notify: Restart internet-monitoring
+  become: false
+
+- name: Render server pipeline configuration.
+  ansible.builtin.template:
+    src: templates/pipeline-server.yml.j2
+    dest: "{{ pipeline_config_dir }}/server.yml"
+    mode: 0600
+  when: pipeline_server_enable | default(false)
   notify: Restart internet-monitoring
   become: false
 
@@ -68,6 +355,23 @@
   when: voip_quality_exporter_enable | default(false)
   become: false
 
+- name: Ensure Prometheus agent configuration directory exists when remote write is enabled.
+  ansible.builtin.file:
+    path: "{{ config_dir }}/internet-monitoring/prometheus-agent"
+    state: directory
+    mode: 0755
+  when: prometheus_remote_write_enable | default(false)
+  become: false
+
+- name: Render Prometheus agent configuration for sensors.
+  ansible.builtin.template:
+    src: templates/prometheus-agent.yml.j2
+    dest: "{{ config_dir }}/internet-monitoring/prometheus-agent/prometheus.yml"
+    mode: 0644
+  when: prometheus_remote_write_enable | default(false)
+  notify: Restart internet-monitoring
+  become: false
+
 
 - name: Determine compose files to apply.
   ansible.builtin.set_fact:
@@ -83,9 +387,29 @@
         and ("docker-compose.sensor.yml" in (monitoring_compose_files_resolved | default([])))
   become: false
 
+- name: Append sensor pipeline compose file when enabled.
+  ansible.builtin.set_fact:
+    monitoring_compose_files_resolved: "{{ ((monitoring_compose_files_resolved | default([])) + ['docker-compose.sensor.pipeline.yml']) | unique | list }}"
+  when:
+    - pipeline_sensor_enable | default(false)
+    - "'docker-compose.sensor.yml' in (monitoring_compose_files_resolved | default([]))"
+  become: false
+
+- name: Determine if compose build should run.
+  ansible.builtin.set_fact:
+    pipeline_should_build: >-
+      {{ ('docker-compose.sensor.yml' in (monitoring_compose_files_resolved | default([])))
+         or ('docker-compose.sensor.pipeline.yml' in (monitoring_compose_files_resolved | default([])))
+         or (pipeline_server_enable | default(false))
+         or (radius_exporter_enable | default(false))
+         or (vpn_exporter_enable | default(false))
+         or (voip_quality_exporter_enable | default(false)) }}
+  become: false
+
 - name: Ensure internet-monitoring environment is running.
   community.docker.docker_compose_v2:
     project_src: "{{ config_dir }}/internet-monitoring/"
-    build: "{{ 'always' if (radius_exporter_enable | default(false)) or (vpn_exporter_enable | default(false)) or (voip_quality_exporter_enable | default(false)) else 'never' }}"
+    build: "{{ 'always' if pipeline_should_build | bool else 'never' }}"
     files: "{{ monitoring_compose_files_resolved | default(['docker-compose.yml']) | to_json | from_json }}"
+    remove_orphans: true
   become: false

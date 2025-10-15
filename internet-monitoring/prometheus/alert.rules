@@ -20,3 +20,12 @@ groups:
     annotations:
       summary: "Instance {{ $labels.instance }} under high load"
       description: "{{ $labels.instance }} of job {{ $labels.job }} is under high load."
+
+  - alert: sensor_dti_missing
+    expr: absent(up{sensor="dti"})
+    for: 15m
+    labels:
+      severity: page
+    annotations:
+      summary: "Sensor dti stopped sending metrics"
+      description: "Prometheus has not received any samples from sensor 'dti' for at least 15 minutes. Check the Raspberry Pi and its monitoring stack."

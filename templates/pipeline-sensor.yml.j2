@@ -1,0 +1,55 @@
+# {{ ansible_managed }}
+sensor_id: "{{ pipeline_sensor_id }}"
+software_version: "{{ pipeline_sensor_software_version }}"
+token: "{{ pipeline_sensor_token }}"
+heartbeat_interval: {{ pipeline_sensor_heartbeat_interval }}
+capabilities:
+{% if pipeline_sensor_capabilities %}
+{% for item in pipeline_sensor_capabilities %}
+  - "{{ item }}"
+{% endfor %}
+{% else %}
+  []
+{% endif %}
+queue:
+  path: "{{ pipeline_sensor_queue_path }}"
+  retention_hours: {{ pipeline_sensor_queue_retention_hours }}
+control:
+  url: "{{ pipeline_sensor_control_url }}"
+  ping_interval: {{ pipeline_sensor_control_ping_interval }}
+  ping_timeout: {{ pipeline_sensor_control_ping_timeout }}
+  headers:
+{% if pipeline_sensor_control_headers %}
+{% for key, value in pipeline_sensor_control_headers.items() %}
+    {{ key }}: "{{ value }}"
+{% endfor %}
+{% else %}
+    {}
+{% endif %}
+  tls:
+    enabled: {{ pipeline_sensor_control_tls_enable | bool | lower }}
+    ca_cert: "{{ pipeline_sensor_control_tls_ca_file }}"
+    cert: "{{ pipeline_sensor_control_tls_cert_file }}"
+    key: "{{ pipeline_sensor_control_tls_key_file }}"
+    skip_verify: {{ pipeline_sensor_control_tls_skip_verify | bool | lower }}
+ingest:
+  url: "{{ pipeline_sensor_ingest_url }}"
+  timeout: {{ pipeline_sensor_ingest_timeout }}
+  headers:
+{% if pipeline_sensor_ingest_headers %}
+{% for key, value in pipeline_sensor_ingest_headers.items() %}
+    {{ key }}: "{{ value }}"
+{% endfor %}
+{% else %}
+    {}
+{% endif %}
+  tls:
+    enabled: {{ pipeline_sensor_ingest_tls_enable | bool | lower }}
+    ca_cert: "{{ pipeline_sensor_ingest_tls_ca_file }}"
+    cert: "{{ pipeline_sensor_ingest_tls_cert_file }}"
+    key: "{{ pipeline_sensor_ingest_tls_key_file }}"
+    skip_verify: {{ pipeline_sensor_ingest_tls_skip_verify | bool | lower }}
+time_sync:
+  enabled: {{ pipeline_sensor_time_sync_enable | bool | lower }}
+  ntp_server: "{{ pipeline_sensor_time_sync_ntp_server }}"
+  fallback_skew_ms: {{ pipeline_sensor_time_sync_fallback_ms }}

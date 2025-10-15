@@ -1,5 +1,8 @@
 version: "3.8"
 
+volumes:
+  promagent_data:
+
 services:
   ping:
     image: prom/blackbox-exporter:latest
@@ -21,6 +24,25 @@ services:
     network_mode: host
     cap_add:
       - NET_ADMIN
+    environment:
+      - OOKLA_EULA_ACCEPT=true
+      - OOKLA_EULA_GDPR=true
+      - OOKLA_SERVER_LICENSE_ACCEPT=true
+
+  fasttest:
+    build:
+      context: ./exporters/fast
+    restart: always
+    network_mode: host
+    environment:
+      - FAST_EXPORTER_PORT=9801
+      - FAST_EXPORTER_TIMEOUT=180
+      - FAST_EXPORTER_SAMPLE_TTL=600
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://0.0.0.0:9801/metrics"]
+      interval: 10m
+      timeout: 15s
+      retries: 1
 
   nodeexp:
     image: prom/node-exporter:latest
@@ -35,3 +57,16 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
+
+  promagent:
+    image: prom/prometheus:latest
+    restart: always
+    network_mode: host
+    user: "0"
+    command:
+      - "--config.file=/etc/prom-agent/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus-agent"
+      - "--storage.tsdb.retention.time=14d"
+    volumes:
+      - ./prometheus-agent/:/etc/prom-agent/:ro
+      - promagent_data:/prometheus-agent

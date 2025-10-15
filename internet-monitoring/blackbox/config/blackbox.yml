@@ -2,14 +2,17 @@
 modules:
   http_2xx:
     prober: http
+    timeout: 30s
     http:
       preferred_ip_protocol: "ip4"
   http_post_2xx:
     prober: http
+    timeout: 30s
     http:
       method: POST
   tcp_connect:
     prober: tcp
+    timeout: 15s
   pop3s_banner:
     prober: tcp
     tcp:
@@ -34,6 +37,7 @@ modules:
         - expect: "^:[^ ]+ 001"
   icmp:
     prober: icmp
+    timeout: 10s
   dns_lookup:
     prober: dns
     timeout: 10s

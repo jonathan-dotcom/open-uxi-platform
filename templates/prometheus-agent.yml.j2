@@ -1,0 +1,242 @@
+# {{ ansible_managed }}
+---
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+  external_labels:
+    sensor: '{{ inventory_hostname }}'
+
+scrape_configs:
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+
+  - job_name: 'speedtest'
+    scrape_interval: {{ monitoring_speedtest_interval }}
+    scrape_timeout: 60s
+    static_configs:
+      - targets: ['localhost:9798']
+
+  - job_name: 'fast-com'
+    scrape_interval: {{ monitoring_speedtest_interval }}
+    scrape_timeout: 180s
+    static_configs:
+      - targets: ['localhost:9801']
+
+{% if monitoring_ping_hosts is defined and monitoring_ping_hosts %}
+  - job_name: 'ping'
+    metrics_path: /probe
+    scrape_interval: {{ monitoring_ping_interval }}
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets: {{ monitoring_ping_hosts | to_json }}
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: '(.*);(.*)'
+        target_label: instance
+        replacement: $1
+      - source_labels: [__address__]
+        regex: '(.*);(.*)'
+        target_label: humanname
+        replacement: $2
+      - source_labels: [instance]
+        target_label: __param_target
+      - target_label: __address__
+        replacement: localhost:9115
+{% endif %}
+
+{% if monitoring_icmp_targets is defined and monitoring_icmp_targets %}
+  - job_name: 'icmp'
+    metrics_path: /probe
+    scrape_interval: {{ monitoring_ping_interval }}
+    params:
+      module: [icmp]
+    static_configs:
+{% for entry in monitoring_icmp_targets %}
+      - targets: ['{{ entry.split(';')[0] }}']
+        labels:
+          humanname: '{{ entry.split(';')[1] | replace("'", "\'") }}'
+{% endfor %}
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - source_labels: [humanname]
+        target_label: humanname
+      - target_label: __address__
+        replacement: localhost:9115
+{% endif %}
+
+{% if monitoring_dns_checks is defined and monitoring_dns_checks %}
+  - job_name: 'dns-synthetics'
+    metrics_path: /probe
+    scrape_interval: {{ monitoring_dns_interval }}
+    params:
+      module: [dns_lookup]
+    static_configs:
+{% for check in monitoring_dns_checks %}
+      - targets: ['{{ check.target }}']
+        labels:
+          humanname: '{{ check.name }}'
+{% endfor %}
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - source_labels: [humanname]
+        target_label: humanname
+      - target_label: __address__
+        replacement: localhost:9115
+{% endif %}
+
+{% if monitoring_dhcp_servers is defined and monitoring_dhcp_servers %}
+  - job_name: 'dhcp-synthetics'
+    metrics_path: /probe
+    scrape_interval: {{ monitoring_dhcp_interval }}
+    params:
+      module: [dhcp_discovery]
+    static_configs:
+{% for check in monitoring_dhcp_servers %}
+      - targets: ['{{ check.target }}']
+        labels:
+          humanname: '{{ check.name }}'
+{% endfor %}
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - source_labels: [humanname]
+        target_label: humanname
+      - target_label: __address__
+        replacement: localhost:9115
+{% endif %}
+
+{% if monitoring_captive_portal_checks is defined and monitoring_captive_portal_checks %}
+  - job_name: 'captive-portal'
+    metrics_path: /probe
+    scrape_interval: {{ monitoring_captive_portal_interval }}
+    params:
+      module: [captive_portal]
+    static_configs:
+{% for check in monitoring_captive_portal_checks %}
+      - targets: ['{{ check.target }}']
+        labels:
+          humanname: '{{ check.name }}'
+{% endfor %}
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - source_labels: [humanname]
+        target_label: humanname
+      - target_label: __address__
+        replacement: localhost:9115
+{% endif %}
+
+{% if monitoring_saas_journeys is defined and monitoring_saas_journeys %}
+  - job_name: 'saas-journeys'
+    metrics_path: /probe
+    scrape_interval: {{ monitoring_saas_interval }}
+    params:
+      module: [saas_login_workflow]
+    static_configs:
+{% for check in monitoring_saas_journeys %}
+      - targets: ['{{ check.target }}']
+        labels:
+          humanname: '{{ check.name }}'
+{% endfor %}
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - source_labels: [humanname]
+        target_label: humanname
+      - target_label: __address__
+        replacement: localhost:9115
+{% endif %}
+
+{% if wifi_exporter_enable | default(false) %}
+  - job_name: 'wifi'
+    static_configs:
+      - targets: ['localhost:{{ wifi_exporter_port | default(9105) }}']
+{% endif %}
+
+{% if radius_exporter_enable | default(false) %}
+  - job_name: 'radius-exporter'
+    metrics_path: /metrics
+    scrape_interval: {{ radius_exporter_interval }}s
+    scrape_timeout: {{ radius_exporter_timeout }}s
+    static_configs:
+      - targets: ['localhost:{{ radius_exporter_scrape_port }}']
+{% endif %}
+
+{% if vpn_exporter_enable | default(false) %}
+  - job_name: 'vpn-exporter'
+    metrics_path: /metrics
+    scrape_interval: {{ vpn_exporter_interval }}s
+    scrape_timeout: {{ vpn_exporter_timeout }}s
+    static_configs:
+      - targets: ['localhost:{{ vpn_exporter_scrape_port }}']
+{% endif %}
+
+{% if voip_quality_exporter_enable | default(false) %}
+  - job_name: 'voip-quality'
+    metrics_path: /metrics
+    scrape_interval: {{ voip_quality_exporter_interval }}s
+    scrape_timeout: {{ voip_quality_exporter_timeout }}s
+    static_configs:
+      - targets: ['localhost:{{ voip_quality_exporter_scrape_port }}']
+{% endif %}
+
+remote_write:
+  - url: "{{ prometheus_remote_write_url }}"
+    send_exemplars: {{ (prometheus_remote_write_send_exemplars | default(true)) | tojson }}
+    queue_config:
+      capacity: {{ prometheus_remote_write_queue_capacity | default(50000) }}
+      max_shards: {{ prometheus_remote_write_queue_max_shards | default(5) }}
+      max_samples_per_send: {{ prometheus_remote_write_queue_max_samples_per_send | default(1000) }}
+      batch_send_deadline: {{ prometheus_remote_write_queue_batch_send_deadline | default('5s') }}
+      min_backoff: {{ prometheus_remote_write_queue_min_backoff | default('2s') }}
+      max_backoff: {{ prometheus_remote_write_queue_max_backoff | default('30s') }}
+{% set headers = prometheus_remote_write_headers | default({}) %}
+{% if headers %}
+    headers:
+{% for header_name, header_value in headers.items() %}
+      {{ header_name }}: "{{ header_value }}"
+{% endfor %}
+{% endif %}
+{% set basic_auth = prometheus_remote_write_basic_auth | default({}) %}
+{% if basic_auth.username is defined and basic_auth.username %}
+    basic_auth:
+      username: "{{ basic_auth.username }}"
+      password: "{{ basic_auth.password | default('') }}"
+{% endif %}
+{% if prometheus_remote_write_bearer_token | default('') %}
+    bearer_token: "{{ prometheus_remote_write_bearer_token }}"
+{% endif %}
+{% if prometheus_remote_write_bearer_token_file | default('') %}
+    bearer_token_file: "{{ prometheus_remote_write_bearer_token_file }}"
+{% endif %}
+{% set tls_config = prometheus_remote_write_tls_config | default({}) %}
+{% if tls_config %}
+    tls_config:
+{% if tls_config.ca_file is defined %}
+      ca_file: "{{ tls_config.ca_file }}"
+{% endif %}
+{% if tls_config.cert_file is defined %}
+      cert_file: "{{ tls_config.cert_file }}"
+{% endif %}
+{% if tls_config.key_file is defined %}
+      key_file: "{{ tls_config.key_file }}"
+{% endif %}
+{% if tls_config.insecure_skip_verify is defined %}
+      insecure_skip_verify: {{ tls_config.insecure_skip_verify | tojson }}
+{% endif %}
+{% endif %}

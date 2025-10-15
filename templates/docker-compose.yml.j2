@@ -3,6 +3,7 @@
 volumes:
   prometheus_data: {}
   grafana_data: {}
+  pipeline_server_data: {}
 
 networks:
   front-tier:
@@ -39,6 +40,9 @@ services:
       - '--storage.tsdb.retention.time={{ prometheus_tsdb_retention_time }}'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
+{% if prometheus_remote_write_receiver_enable | default(false) %}
+      - '--web.enable-remote-write-receiver'
+{% endif %}
     ports:
       - 9090:9090
 {% if monitoring_include_exporters %}
@@ -55,6 +59,7 @@ services:
       - voip-quality-exporter:voip-quality-exporter
 {% endif %}
 {% endif %}
+
     networks:
       - back-tier
 {% if domain_name_enable and domain_name and domain_prometheus %}
@@ -64,6 +69,22 @@ services:
       - VIRTUAL_HOST={{ domain_prometheus }}.{{ domain_name }}
       - VIRTUAL_PORT=9090
 {% endif %}
+{% endif %}
+
+{% if pipeline_server_enable | default(false) %}
+
+  pipeline-server:
+    build:
+      context: .
+      dockerfile: pipeline/docker/server.Dockerfile
+    restart: always
+    network_mode: host
+    environment:
+      - PIPELINE_CONFIG=/config/server.yml
+    volumes:
+      - ./pipeline/config/server.yml:/config/server.yml:ro
+      - ./pipeline/tls:/tls:ro
+      - pipeline_server_data:/var/lib/pipeline
 {% endif %}
 
 {% if monitoring_include_grafana %}

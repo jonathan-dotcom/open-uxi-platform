@@ -1,7 +1,7 @@
 monitoring_include_prometheus: false
 monitoring_include_grafana: false
 monitoring_include_exporters: true
-monitoring_compose_files:
+monitoring_compose_files_sensor:
   - docker-compose.sensor.yml
 pihole_enable: false
 wifi_exporter_port: 9105
@@ -11,3 +11,12 @@ wifi_exporter_iface: wlan0
 speedtest_exporter_target: "{{ (ansible_host | default(inventory_hostname)) ~ ':9798' }}"
 
 docker_install_compose_plugin: true
+
+prometheus_remote_write_enable_sensor: true
+prometheus_remote_write_url_sensor: "http://100.119.89.99:9090/api/v1/write"
+
+pipeline_sensor_enable_host: true
+pipeline_sensor_id_host: "{{ inventory_hostname }}"
+pipeline_sensor_token_host: "b4e670ab73995da3c6db79756c271239"
+pipeline_sensor_control_url_host: "ws://100.119.89.99:8765/control"
+pipeline_sensor_ingest_url_host: "http://100.119.89.99:8081/v1/ingest/chunk"

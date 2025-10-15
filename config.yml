@@ -24,30 +24,145 @@ monitoring_include_grafana: true
 monitoring_include_exporters: true
 monitoring_compose_files:
   - docker-compose.yml
-monitoring_speedtest_interval: 30m
-monitoring_ping_interval: 5s
+monitoring_speedtest_interval: 10m
+monitoring_ping_interval: 10m
 monitoring_ping_hosts:
-  - http://www.google.com/;google.com
-  - https://github.com/;github.com
-  - https://www.apple.com/;apple.com
-monitoring_dns_interval: 30s
+  - http://humancapital.its.ac.id/;Human capital HTTP
+  - https://humancapital.its.ac.id/;Human capital HTTPS
+  - http://www.docusign.com/;Docusign HTTP
+  - https://www.docusign.com/;Docusign HTTPS
+  - http://www.dropbox.com/;Dropbox HTTP
+  - https://www.dropbox.com/;Dropbox HTTPS
+  - http://eperkantoran.its.ac.id/;eperkantoran HTTP
+  - https://eperkantoran.its.ac.id/;eperkantoran HTTPS
+  - http://www.facebook.com/;Facebook HTTP
+  - https://www.facebook.com/;Facebook HTTPS
+  - http://www.github.com/;Github HTTP
+  - https://www.github.com/;Github HTTPS
+  - http://www.google.com/;Google HTTP
+  - https://www.google.com/;Google HTTPS
+  - http://drive.google.com/;Google Drive HTTP
+  - https://drive.google.com/;Google Drive HTTPS
+  - http://www.gmail.com/;Google Mail HTTP
+  - https://www.gmail.com/;Google Mail HTTPS
+  - http://www.hubspot.com/;Hubspot HTTP
+  - https://www.hubspot.com/;Hubspot HTTPS
+  - http://www.linkedin.com/;LinkedIn HTTP
+  - https://www.linkedin.com/;LinkedIn HTTPS
+  - http://login.microsoftonline.com/;Microsoft Online HTTP
+  - https://login.microsoftonline.com/;Microsoft Online HTTPS
+  - http://my.its.ac.id/;my.its.ac.id HTTP
+  - https://my.its.ac.id/;my.its.ac.id HTTPS
+  - http://portal.its.ac.id/;portal.its.ac.id HTTP
+  - https://portal.its.ac.id/;portal.its.ac.id HTTPS
+  - http://its.ac.id/;website ITS HTTP
+  - https://its.ac.id/;website ITS HTTPS
+  - http://www.youtube.com/;YouTube HTTP
+  - https://www.youtube.com/;YouTube HTTPS
+  - http://www.zendesk.com/;Zendesk HTTP
+  - https://www.zendesk.com/;Zendesk HTTPS
+monitoring_icmp_targets:
+  - 10.24.0.10;10.24.0.10
+  - 10.24.0.13;10.24.0.13
+  - 10.24.0.14;10.24.0.14
+  - 118.97.5.9;118.97.5.9
+  - 103.94.188.3;DNS 103.94.188.3
+  - 202.46.129.3;DNS 202.46.129.3
+  - humancapital.its.ac.id;Human capital
+  - its.ac.id;ping ke its
+  - www.docusign.com;Docusign
+  - www.dropbox.com;Dropbox
+  - eperkantoran.its.ac.id;eperkantoran
+  - www.facebook.com;Facebook
+  - www.github.com;Github
+  - www.google.com;Google
+  - drive.google.com;Google Drive
+  - www.gmail.com;Google Mail
+  - www.hubspot.com;Hubspot
+  - www.linkedin.com;LinkedIn
+  - login.microsoftonline.com;Microsoft Online
+  - my.its.ac.id;my.its.ac.id
+  - portal.its.ac.id;portal.its.ac.id
+  - www.youtube.com;YouTube
+  - www.zendesk.com;Zendesk
+monitoring_dns_interval: 10m
 monitoring_dns_checks:
-  - name: "Cloudflare DNS"
-    target: "www.cloudflare.com"
-  - name: "Google DNS"
-    target: "www.google.com"
-monitoring_dhcp_interval: 5m
+  - name: "ITS DNS 103.94.188.3"
+    target: "103.94.188.3"
+  - name: "ITS DNS 202.46.129.3"
+    target: "202.46.129.3"
+monitoring_dhcp_interval: 10m
 monitoring_dhcp_servers:
   - name: "Branch DHCP"
     target: "192.168.1.1:67"
-monitoring_captive_portal_interval: 1m
+monitoring_captive_portal_interval: 10m
 monitoring_captive_portal_checks:
   - name: "Guest Wi-Fi"
     target: "https://captive.example.com/status"
-monitoring_saas_interval: 1m
+monitoring_saas_interval: 10m
 monitoring_saas_journeys:
   - name: "Microsoft 365"
     target: "https://login.microsoftonline.com/"
+
+
+# Sensor-to-server pipeline configuration.
+pipeline_sensor_enable: false
+pipeline_sensor_id: sensor-1
+pipeline_sensor_software_version: sensor-dev
+pipeline_sensor_token: "change-me"
+pipeline_sensor_queue_path: "/var/lib/pipeline/queue.db"
+pipeline_sensor_queue_retention_hours: 72
+pipeline_sensor_heartbeat_interval: 30
+pipeline_sensor_capabilities:
+  - chunks
+  - heartbeats
+pipeline_sensor_control_url: "ws://monitoring.example.com:8765/control"
+pipeline_sensor_control_ping_interval: 20
+pipeline_sensor_control_ping_timeout: 20
+pipeline_sensor_control_headers: {}
+pipeline_sensor_control_tls_enable: false
+pipeline_sensor_control_tls_ca_content: ""
+pipeline_sensor_control_tls_cert_content: ""
+pipeline_sensor_control_tls_key_content: ""
+pipeline_sensor_control_tls_skip_verify: false
+pipeline_sensor_ingest_url: "http://monitoring.example.com:8081/v1/ingest/chunk"
+pipeline_sensor_ingest_timeout: 10
+pipeline_sensor_ingest_headers: {}
+pipeline_sensor_ingest_tls_enable: false
+pipeline_sensor_ingest_tls_ca_content: ""
+pipeline_sensor_ingest_tls_cert_content: ""
+pipeline_sensor_ingest_tls_key_content: ""
+pipeline_sensor_ingest_tls_skip_verify: false
+pipeline_sensor_time_sync_enable: false
+pipeline_sensor_time_sync_ntp_server: "pool.ntp.org"
+pipeline_sensor_time_sync_fallback_ms: 0.0
+
+pipeline_server_enable: false
+pipeline_server_db_path: "/var/lib/pipeline/server.db"
+pipeline_server_retention_hours: 72
+pipeline_server_control_bind: "0.0.0.0"
+pipeline_server_control_port: 8765
+pipeline_server_control_tls_enable: false
+pipeline_server_control_tls_cert_content: ""
+pipeline_server_control_tls_key_content: ""
+pipeline_server_control_tls_client_ca_content: ""
+pipeline_server_ingest_bind: "0.0.0.0"
+pipeline_server_ingest_port: 8081
+pipeline_server_ingest_tls_enable: false
+pipeline_server_ingest_tls_cert_content: ""
+pipeline_server_ingest_tls_key_content: ""
+pipeline_server_ingest_tls_client_ca_content: ""
+pipeline_server_stream_bind: "0.0.0.0"
+pipeline_server_stream_port: 8766
+pipeline_server_stream_token: ""
+pipeline_server_stream_tls_enable: false
+pipeline_server_stream_tls_cert_content: ""
+pipeline_server_stream_tls_key_content: ""
+pipeline_server_stream_tls_client_ca_content: ""
+pipeline_server_auth_sensors: []
+pipeline_server_request_max_chunks: 32
+pipeline_server_request_max_bytes: 2097152
+pipeline_server_request_max_in_flight: 32
 # Docker configuration.
 docker_install_compose_plugin: false
 
@@ -57,6 +172,23 @@ prometheus_node_exporter_targets:
   - 'nodeexp:9100'
 prometheus_extra_scrape_configs: ''
 prometheus_tsdb_retention_time: 90d
+prometheus_enable_local_synthetics: true
+prometheus_fast_targets: []
+prometheus_remote_write_enable: false
+prometheus_remote_write_url: ''
+prometheus_remote_write_send_exemplars: true
+prometheus_remote_write_queue_capacity: 50000
+prometheus_remote_write_queue_max_shards: 5
+prometheus_remote_write_queue_max_samples_per_send: 1000
+prometheus_remote_write_queue_batch_send_deadline: 5s
+prometheus_remote_write_queue_min_backoff: 2s
+prometheus_remote_write_queue_max_backoff: 30s
+prometheus_remote_write_headers: {}
+prometheus_remote_write_basic_auth: {}
+prometheus_remote_write_bearer_token: ''
+prometheus_remote_write_bearer_token_file: ''
+prometheus_remote_write_tls_config: {}
+prometheus_remote_write_receiver_enable: false
 
 
 # Shelly Plug configuration. (Also requires `monitoring_enable`)

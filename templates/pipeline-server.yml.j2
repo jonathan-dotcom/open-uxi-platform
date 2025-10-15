@@ -1,0 +1,43 @@
+# {{ ansible_managed }}
+store:
+  path: "{{ pipeline_server_db_path }}"
+  retention_hours: {{ pipeline_server_retention_hours }}
+control:
+  bind: "{{ pipeline_server_control_bind }}"
+  port: {{ pipeline_server_control_port }}
+  tls:
+    enabled: {{ pipeline_server_control_tls_enable | bool | lower }}
+    cert: "{{ pipeline_server_control_tls_cert_file }}"
+    key: "{{ pipeline_server_control_tls_key_file }}"
+    client_ca: "{{ pipeline_server_control_tls_client_ca_file }}"
+ingest:
+  bind: "{{ pipeline_server_ingest_bind }}"
+  port: {{ pipeline_server_ingest_port }}
+  tls:
+    enabled: {{ pipeline_server_ingest_tls_enable | bool | lower }}
+    cert: "{{ pipeline_server_ingest_tls_cert_file }}"
+    key: "{{ pipeline_server_ingest_tls_key_file }}"
+    client_ca: "{{ pipeline_server_ingest_tls_client_ca_file }}"
+stream:
+  bind: "{{ pipeline_server_stream_bind }}"
+  port: {{ pipeline_server_stream_port }}
+  token: "{{ pipeline_server_stream_token }}"
+  tls:
+    enabled: {{ pipeline_server_stream_tls_enable | bool | lower }}
+    cert: "{{ pipeline_server_stream_tls_cert_file }}"
+    key: "{{ pipeline_server_stream_tls_key_file }}"
+    client_ca: "{{ pipeline_server_stream_tls_client_ca_file }}"
+auth:
+{% if pipeline_server_auth_sensors %}
+  sensors:
+{% for sensor in pipeline_server_auth_sensors %}
+    - id: "{{ sensor.id }}"
+      token: "{{ sensor.token }}"
+{% endfor %}
+{% else %}
+  sensors: []
+{% endif %}
+scheduler:
+  max_chunks: {{ pipeline_server_request_max_chunks }}
+  max_bytes: {{ pipeline_server_request_max_bytes }}
+  max_in_flight: {{ pipeline_server_request_max_in_flight }}
