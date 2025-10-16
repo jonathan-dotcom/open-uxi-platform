@@ -10,7 +10,7 @@ import signal
 import ssl
 import threading
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Iterable, Optional
 
 import yaml
 
@@ -18,6 +18,7 @@ from .control import ControlManager, control_server
 from .http_ingest import ChunkIngestService, create_server
 from .offsets import OffsetTracker
 from .scheduler import RequestScheduler
+from .dashboard_api import build_dashboard_payload
 from .snapshot_cache import SnapshotCache
 from .store import ChunkStore, IngestResult
 from .stream import SnapshotStreamer
@@ -49,7 +50,7 @@ def build_server_ssl(config: Dict[str, Any]) -> ssl.SSLContext | None:
     return context
 
 
-async def run_server(config: Dict[str, Any]) -> None:
+async def run_server(config: Dict[str, Any], *, config_path: Optional[Path] = None) -> None:
     store_cfg = config.get("store", {})
     db_path = Path(store_cfg.get("path", "/var/lib/pipeline/server.db"))
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -91,6 +92,23 @@ async def run_server(config: Dict[str, Any]) -> None:
 
     ingest_cfg = config.get("ingest", {})
     ingest_ssl = build_server_ssl(ingest_cfg.get("tls", {}))
+    dashboard_cfg = config.get("dashboard", {})
+    sample_path = dashboard_cfg.get("sample_path")
+    if sample_path and config_path and not Path(sample_path).is_absolute():
+        sample_path = str((config_path.parent / sample_path).resolve())
+
+    allow_origins: Iterable[str] | None = dashboard_cfg.get("allow_origins")
+    if allow_origins is None:
+        allow_origins = dashboard_cfg.get("cors", {}).get("allow_origins")
+    if isinstance(allow_origins, str):
+        allow_origins = [allow_origins]
+
+    def dashboard_provider() -> Dict[str, Any]:
+        return build_dashboard_payload(
+            snapshot_cache,
+            sample_path=Path(sample_path) if sample_path else None,
+        )
+
     ingest_service = ChunkIngestService(
         store,
         control,
@@ -98,6 +116,8 @@ async def run_server(config: Dict[str, Any]) -> None:
         loop=loop,
         on_snapshot=handle_snapshot,
         sensor_tokens=sensor_tokens,
+        dashboard_provider=dashboard_provider,
+        allowed_origins=list(allow_origins) if allow_origins else ["*"],
     )
 
     httpd = create_server(
@@ -169,8 +189,9 @@ def main() -> None:
 
     configure_logging(args.verbose)
 
-    config = load_config(Path(args.config))
-    asyncio.run(run_server(config))
+    config_path = Path(args.config)
+    config = load_config(config_path)
+    asyncio.run(run_server(config, config_path=config_path))
 
 
 if __name__ == "__main__":

@@ -41,3 +41,6 @@ scheduler:
   max_chunks: {{ pipeline_server_request_max_chunks }}
   max_bytes: {{ pipeline_server_request_max_bytes }}
   max_in_flight: {{ pipeline_server_request_max_in_flight }}
+dashboard:
+  sample_path: "{{ pipeline_server_dashboard_sample_path | default('', true) }}"
+  allow_origins: {{ pipeline_server_dashboard_allow_origins | default(['*']) | to_json }}
