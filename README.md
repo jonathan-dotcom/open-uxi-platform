@@ -243,3 +243,17 @@ the resilient sensor delivery pipeline directly from this repository.
   ```
 
 For deeper architectural notes, payload format, metrics, and TLS guidance read `docs/pipeline.md`.
+
+## UXI Control Center web dashboard
+
+A React + Vite front-end is available under `dashboard/` to mirror the Aruba UXI experience with richer visualizations than the bundled Grafana dashboards.
+
+### Run locally
+
+```bash
+cd dashboard
+npm install
+npm run dev
+```
+
+The dev server starts on http://localhost:5173 and serves a multi-panel overview (KPIs, time-series trends, journeys, and sensor fleet table) backed by the sample data in `src/data/sampleData.ts`.
