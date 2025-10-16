@@ -101,6 +101,32 @@ ansible-playbook -i inventory.ini main.yml
 3. Browse Grafana via Nginx/HTTPS (or Tailscale) using the credentials configured in
    `grafana/config.monitoring` and rotate the admin password immediately.
 
+## Dashboard Website
+
+The repository includes a React/Vite dashboard under `dashboard/` that consumes
+the pipeline API and WebSocket stream. To build and host it:
+
+```bash
+cd dashboard
+npm install
+npm run build
+```
+
+Copy `dashboard/dist/` to your web server and expose it via HTTPS. Configure the
+following environment variables (for example in `.env.production`) before
+building:
+
+- `VITE_DASHBOARD_API_BASE` – Base URL for the pipeline REST API (e.g.
+  `https://monitor.example.com/pipeline`).
+- `VITE_DASHBOARD_STREAM_URL` – Optional explicit WebSocket endpoint. If unset,
+  the app derives one from `VITE_DASHBOARD_API_BASE` and `VITE_DASHBOARD_STREAM_PORT`.
+- `VITE_DASHBOARD_STREAM_PORT` – Optional port override when deriving the stream
+  URL.
+
+Without these variables the dashboard falls back to the bundled sample data in
+`dashboard/public/data/dashboard.json`. See [`docs/deployment.md`](docs/deployment.md)
+for a complete deployment walkthrough, including reverse-proxy guidance.
+
 ## Manual Docker Workflow (Alternative)
 
 If you prefer to skip Ansible:
