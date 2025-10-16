@@ -1,5 +1,5 @@
 import { ArrowUpRight, MapPin } from 'lucide-react';
-import type { JourneySnapshot } from '../types';
+import { JourneySnapshot } from '../data/sampleData';
 import { StatusBadge } from './StatusBadge';
 
 interface JourneyCardProps {
@@ -32,12 +32,6 @@ export function JourneyCard({ journey }: JourneyCardProps) {
         </div>
         <span className="text-base font-semibold text-white">{journey.impactedSites}</span>
       </div>
-      {journey.topImpactedSensors && journey.topImpactedSensors.length > 0 && (
-        <div className="mt-4 text-xs text-white/60">
-          <p className="font-semibold text-white/80">Sensors impacted</p>
-          <p className="mt-1 text-white/60">{journey.topImpactedSensors.join(', ')}</p>
-        </div>
-      )}
       <button className="mt-6 inline-flex items-center gap-2 self-start text-sm font-semibold text-accent">
         View waterfall <ArrowUpRight className="h-4 w-4" />
       </button>

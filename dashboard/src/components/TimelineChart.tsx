@@ -1,3 +1,5 @@
+import { Card } from './common/Card';
+import { timeline } from '../data/sampleData';
 import {
   Area,
   AreaChart,
@@ -8,21 +10,13 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
-import type { TimelinePoint } from '../types';
-import { Card } from './common/Card';
-import { formatTime } from '../utils/format';
 
-interface TimelineChartProps {
-  points: TimelinePoint[];
-  reportingWindow: string;
-}
-
-export function TimelineChart({ points, reportingWindow }: TimelineChartProps) {
+export function TimelineChart() {
   return (
-    <Card id="overview" title={reportingWindow} description="Synthetic success rate and network latency.">
+    <Card id="overview" title="Last 12 hours" description="Synthetic success rate and network latency.">
       <div className="h-72 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={points} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+          <AreaChart data={timeline} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="colorSuccess" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.8} />
@@ -34,7 +28,7 @@ export function TimelineChart({ points, reportingWindow }: TimelineChartProps) {
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
-            <XAxis dataKey="timestamp" tickFormatter={(value) => formatTime(value)} />
+            <XAxis dataKey="timestamp" tickFormatter={(value) => new Date(value).toLocaleTimeString([], { hour: '2-digit' })} />
             <YAxis yAxisId="left" domain={[80, 100]} tickFormatter={(value) => `${value}%`} />
             <YAxis yAxisId="right" orientation="right" />
             <Tooltip
@@ -44,7 +38,6 @@ export function TimelineChart({ points, reportingWindow }: TimelineChartProps) {
                 borderRadius: '12px',
                 color: '#fff'
               }}
-              labelFormatter={(value) => formatTime(String(value))}
             />
             <Legend />
             <Area yAxisId="left" type="monotone" dataKey="successRate" stroke="#0ea5e9" fill="url(#colorSuccess)" name="Success rate" />

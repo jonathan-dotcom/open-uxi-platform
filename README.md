@@ -256,19 +256,4 @@ npm install
 npm run dev
 ```
 
-The dev server starts on http://localhost:5173 and serves a multi-panel overview (KPIs, time-series trends, journeys, active incidents, and a sensor drill-down experience) backed by the bundled snapshot JSON.
-
-### Data sources and integration
-
-- The React app automatically tries to load `/data/dashboard.json`. During development this is served from `dashboard/public/data/dashboard.json`; in production you can publish an API on the pipeline server (for example, proxying the snapshot cache) and expose it at the same path.
-- If the fetch fails, the UI falls back to the curated sample found in `src/data/sampleData.ts` so the layout still renders offline.
-- Update the JSON payload to reflect your sensors, journeys, and alerts. The schema matches the TypeScript types in `src/types.ts`, making it straightforward to extend with real pipeline fields.
-- Trigger a hard refresh (Ctrl+Shift+R) or use the **Refresh data** button in the UI after swapping out the backing API.
-
-### Production build
-
-```bash
-npm run build
-```
-
-The static assets land in `dashboard/dist/` and can be served behind the same HTTPS endpoint you already publish for Grafana.
+The dev server starts on http://localhost:5173 and serves a multi-panel overview (KPIs, time-series trends, journeys, and sensor fleet table) backed by the sample data in `src/data/sampleData.ts`.

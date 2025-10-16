@@ -1,5 +1,5 @@
 import { clsx } from 'clsx';
-import type { ServiceStatus } from '../types';
+import type { ServiceStatus } from '../data/sampleData';
 
 interface StatusBadgeProps {
   status: ServiceStatus;
