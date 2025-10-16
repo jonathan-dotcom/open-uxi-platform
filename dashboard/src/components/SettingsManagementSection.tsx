@@ -29,7 +29,7 @@ const statusTone: Record<string, string> = {
 
 export function SettingsManagementSection({ groups, sensors, agents, networks, services }: SettingsManagementSectionProps) {
   return (
-    <section id="settings" className="mt-10 space-y-6 rounded-3xl border border-white/10 bg-surface/80 p-6">
+    <section id="management" className="mt-10 space-y-6 rounded-3xl border border-white/10 bg-surface/80 p-6">
       <header>
         <p className="text-xs uppercase tracking-[0.4em] text-accent">Settings</p>
         <h2 className="mt-2 text-2xl font-semibold text-white">Management overview</h2>

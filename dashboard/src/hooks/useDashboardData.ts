@@ -96,6 +96,7 @@ function coerceSnapshot(snapshot: DashboardSnapshot): DashboardSnapshot {
       services: servicesInventory
     },
     alertsConfig: snapshot.alertsConfig ?? base.alertsConfig,
+    account: snapshot.account ?? base.account,
     counts: snapshot.counts ?? base.counts
   };
 }
@@ -148,6 +149,7 @@ function isDashboardPayload(value: unknown): value is DashboardSnapshot {
   const management = payload.management as Record<string, unknown> | undefined;
   const alertsConfig = payload.alertsConfig as Record<string, unknown> | undefined;
   const counts = payload.counts as Record<string, unknown> | undefined;
+  const account = payload.account as Record<string, unknown> | undefined;
 
   return (
     typeof payload.generatedAt === 'string' &&
@@ -174,7 +176,8 @@ function isDashboardPayload(value: unknown): value is DashboardSnapshot {
     typeof management.networks === 'object' &&
     typeof management.services === 'object' &&
     alertsConfig !== undefined &&
-    counts !== undefined
+    counts !== undefined &&
+    account !== undefined
   );
 }
 

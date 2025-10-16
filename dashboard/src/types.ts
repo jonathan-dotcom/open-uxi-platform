@@ -273,6 +273,117 @@ export interface AlertsConfiguration {
   alertEmail: string;
 }
 
+export interface ReportDefinition {
+  id: string;
+  name: string;
+  owner: string;
+  createdAt: string;
+  schedule?: string;
+  lastRun?: string;
+}
+
+export interface AccountReportWorkspace {
+  onDemand: ReportDefinition[];
+  scheduled: ReportDefinition[];
+}
+
+export interface AiOpsWorkspace {
+  description: string;
+  enabled: boolean;
+  learnMoreUrl: string;
+}
+
+export interface SubscriptionEntry {
+  id: string;
+  service: string;
+  key: string;
+  subscriptions: number;
+  startDate: string;
+  endDate: string;
+  duration: string;
+}
+
+export interface SubscriptionSummaryCard {
+  headline: string;
+  body: string;
+  ctaLabel: string;
+}
+
+export interface SubscriptionTabData {
+  summary: SubscriptionSummaryCard;
+  entries: SubscriptionEntry[];
+}
+
+export interface AccountSubscriptionsWorkspace {
+  sensors: SubscriptionTabData;
+  agents: SubscriptionTabData;
+}
+
+export interface IntegrationEntry {
+  id: string;
+  name: string;
+  target: string;
+  status: 'connected' | 'disabled' | 'pending';
+  lastUpdated: string;
+}
+
+export interface AccountIntegrationsWorkspace {
+  webhooks: IntegrationEntry[];
+  dataPush: IntegrationEntry[];
+  centralLinked: boolean;
+}
+
+export interface UserProfile {
+  name: string;
+  email: string;
+  phone: string;
+}
+
+export interface TeamMember {
+  id: string;
+  user: string;
+  email: string;
+  accessType: string;
+  groupAccess: string;
+}
+
+export interface AccountDangerAction {
+  id: string;
+  label: string;
+  description: string;
+  href: string;
+}
+
+export interface AccountGlobalConfigEntry {
+  id: string;
+  name: string;
+  enabled: boolean;
+  description: string;
+}
+
+export interface AccountDetailsWorkspace {
+  companyName: string;
+  accountId: string;
+  activationDate: string;
+  sensorCount: number;
+  userCount: number;
+  migrationBanner: string;
+  billingContact: { name: string; email: string };
+  globalConfig: AccountGlobalConfigEntry[];
+  auditLog: { id: string; actor: string; action: string; createdAt: string }[];
+  dangerZone: AccountDangerAction[];
+}
+
+export interface AccountWorkspace {
+  reports: AccountReportWorkspace;
+  aiops: AiOpsWorkspace;
+  subscriptions: AccountSubscriptionsWorkspace;
+  integrations: AccountIntegrationsWorkspace;
+  profile: UserProfile;
+  team: TeamMember[];
+  account: AccountDetailsWorkspace;
+}
+
 export interface AlertEvent {
   id: string;
   severity: AlertSeverity;
@@ -328,6 +439,7 @@ export interface DashboardSnapshot {
     services: ServiceInventoryEntry[];
   };
   alertsConfig: AlertsConfiguration;
+  account: AccountWorkspace;
   counts: {
     sensorsOnline: number;
     agentsOnline: number;

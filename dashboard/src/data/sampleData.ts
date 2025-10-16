@@ -1,10 +1,17 @@
 import type {
+  AccountDetailsWorkspace,
+  AccountIntegrationsWorkspace,
+  AccountReportWorkspace,
+  AccountSubscriptionsWorkspace,
+  AccountWorkspace,
+  AiOpsWorkspace,
   DashboardSnapshot,
   DiagnosticTest,
   ExperienceSensorOverview,
   MetricPoint,
   NotificationIssue,
   PathRoute,
+  ReportDefinition,
   Sensor,
   SensorAction,
   SensorPerformancePoint,
@@ -12,6 +19,7 @@ import type {
   ServiceMetricSeries,
   ServiceStatus,
   ServiceTestOverview,
+  SubscriptionEntry,
   ThresholdSetting,
   TimelinePoint,
   TileSensor,
@@ -473,6 +481,104 @@ const groupThresholds: ThresholdSetting[] = [
   { id: 'th-channel', name: 'Channel utilization', enabled: false, warning: 'Utilization > 70 %', error: 'Utilization > 85 %' }
 ];
 
+const onDemandReports: ReportDefinition[] = [
+  { id: 'report-on-demand-1', name: 'APAC Wi-Fi Health', owner: 'Avery Tan', createdAt: '2024-02-12T09:00:00Z', lastRun: '2024-03-14T23:00:00Z' },
+  { id: 'report-on-demand-2', name: 'SaaS Availability Snapshot', owner: 'Jordan Blake', createdAt: '2024-01-30T18:00:00Z', lastRun: '2024-03-15T08:00:00Z' }
+];
+
+const scheduledReports: ReportDefinition[] = [
+  { id: 'report-scheduled-1', name: 'Executive Monday Briefing', owner: 'Jordan Blake', createdAt: '2023-11-01T07:30:00Z', schedule: 'Mondays at 06:00 UTC', lastRun: '2024-03-11T06:00:00Z' }
+];
+
+const accountReports: AccountReportWorkspace = {
+  onDemand: onDemandReports,
+  scheduled: scheduledReports
+};
+
+const aiOpsWorkspace: AiOpsWorkspace = {
+  description:
+    'Unified incident detection combines Wi-Fi, WAN and SaaS telemetry to surface actionable narratives instead of isolated alerts.',
+  enabled: false,
+  learnMoreUrl: 'https://www.arubanetworks.com/solutions/aiops/'
+};
+
+const subscriptionSensors: SubscriptionEntry[] = [
+  { id: 'sub-sensor-1', service: 'UXI Sensor Enterprise', key: 'SEN-9821', subscriptions: 120, startDate: '2023-07-01', endDate: '2024-07-01', duration: '12 months' }
+];
+
+const subscriptionAgents: SubscriptionEntry[] = [
+  { id: 'sub-agent-1', service: 'UXI Mobile Agent', key: 'AGT-4420', subscriptions: 40, startDate: '2023-09-15', endDate: '2024-09-15', duration: '12 months' }
+];
+
+const accountSubscriptions: AccountSubscriptionsWorkspace = {
+  sensors: {
+    summary: {
+      headline: '120 active sensor subscriptions',
+      body: 'Covers all production sites. Renewals begin in 4 months.',
+      ctaLabel: 'Add subscriptions'
+    },
+    entries: subscriptionSensors
+  },
+  agents: {
+    summary: {
+      headline: '40 active agent subscriptions',
+      body: 'Mobile field teams in APAC and Americas.',
+      ctaLabel: 'Purchase more licenses'
+    },
+    entries: subscriptionAgents
+  }
+};
+
+const accountIntegrations: AccountIntegrationsWorkspace = {
+  webhooks: [
+    { id: 'webhook-1', name: 'PagerDuty Major Incidents', target: 'https://events.pagerduty.com/v2/enqueue', status: 'connected', lastUpdated: '2024-03-09T12:12:00Z' }
+  ],
+  dataPush: [
+    { id: 'datapush-1', name: 'Splunk HEC', target: 'https://splunk.example.com/services/collector', status: 'connected', lastUpdated: '2024-03-10T05:44:00Z' }
+  ],
+  centralLinked: false
+};
+
+const accountProfile = {
+  name: 'Jordan Blake',
+  email: 'network.ops@example.com',
+  phone: '+1 415 555 0143'
+};
+
+const accountTeam = [
+  { id: 'team-1', user: 'Jordan Blake', email: 'network.ops@example.com', accessType: 'Owner', groupAccess: 'All groups' },
+  { id: 'team-2', user: 'Avery Tan', email: 'avery.tan@example.com', accessType: 'Administrator', groupAccess: 'APAC' },
+  { id: 'team-3', user: 'Maria Ortiz', email: 'maria.ortiz@example.com', accessType: 'Viewer', groupAccess: 'US East' }
+];
+
+const accountDetails: AccountDetailsWorkspace = {
+  companyName: 'Cape Demo Retail',
+  accountId: 'AC-45821',
+  activationDate: '2021-08-14',
+  sensorCount: 136,
+  userCount: 18,
+  migrationBanner: 'Migrate to HPE GreenLake to manage UXI, Aruba Central and NaaS from a single console.',
+  billingContact: { name: 'Jordan Blake', email: 'finance@example.com' },
+  globalConfig: [
+    { id: 'cfg-pcap', name: 'Packet capture', enabled: true, description: 'Allow sensors to initiate remote packet captures on demand.' },
+    { id: 'cfg-data-retention', name: 'Extended data retention', enabled: false, description: 'Store telemetry longer than the default 30-day window.' }
+  ],
+  auditLog: [],
+  dangerZone: [
+    { id: 'reset-account', label: 'Account reset', description: 'Reset UXI configuration and request migration assistance.', href: 'mailto:support@arubanetworks.com' }
+  ]
+};
+
+const accountWorkspace: AccountWorkspace = {
+  reports: accountReports,
+  aiops: aiOpsWorkspace,
+  subscriptions: accountSubscriptions,
+  integrations: accountIntegrations,
+  profile: accountProfile,
+  team: accountTeam,
+  account: accountDetails
+};
+
 const fallbackDashboard: DashboardSnapshot = {
   generatedAt,
   reportingWindow: 'Last 12 hours',
@@ -698,6 +804,7 @@ const fallbackDashboard: DashboardSnapshot = {
     ],
     alertEmail: 'network-ops@example.com'
   },
+  account: accountWorkspace,
   counts: {
     sensorsOnline: 18,
     agentsOnline: 3
