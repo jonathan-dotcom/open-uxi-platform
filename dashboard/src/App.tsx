@@ -1,94 +1,217 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, AlertTriangle, Cloud, Globe2 } from 'lucide-react';
+import type { DiagnosticTest, ExperienceSensorOverview, FilterState, ServiceTestOverview, TileSensor } from './types';
 import { Layout } from './components/Layout';
-import { KpiCard } from './components/KpiCard';
-import { TimelineChart } from './components/TimelineChart';
-import { JourneyGrid } from './components/JourneyGrid';
-import { SensorTable } from './components/SensorTable';
-import { AlertsPanel } from './components/AlertsPanel';
-import { SensorDetailPanel } from './components/SensorDetailPanel';
+import { CirclesDashboard } from './components/CirclesDashboard';
+import { TileViewByStatus } from './components/TileViewByStatus';
+import { PathAnalysisSection } from './components/PathAnalysisSection';
+import { SettingsManagementSection } from './components/SettingsManagementSection';
+import { AlertsCenter } from './components/AlertsCenter';
 import { LoadingState } from './components/LoadingState';
 import { ErrorBanner } from './components/ErrorBanner';
 import { useDashboardData } from './hooks/useDashboardData';
-import { formatPercent, formatRate } from './utils/format';
-import type { Sensor } from './types';
+
+function filterSensors(sensors: ExperienceSensorOverview[], filter: FilterState) {
+  return sensors.filter((sensor) => {
+    if (!filter.states.includes(sensor.status)) {
+      return false;
+    }
+    if (filter.group && sensor.group !== filter.group) {
+      return false;
+    }
+    if (filter.wirelessNetwork && sensor.networkType === 'wireless' && sensor.network !== filter.wirelessNetwork) {
+      return false;
+    }
+    if (filter.wiredNetwork && sensor.networkType === 'wired' && sensor.network !== filter.wiredNetwork) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function filterTiles(tiles: TileSensor[], filter: FilterState) {
+  return tiles.filter((tile) => {
+    if (!filter.states.includes(tile.status)) {
+      return false;
+    }
+    if (filter.group && tile.group !== filter.group) {
+      return false;
+    }
+    if (filter.wirelessNetwork && tile.network === filter.wirelessNetwork) {
+      return true;
+    }
+    if (filter.wiredNetwork && tile.network === filter.wiredNetwork) {
+      return true;
+    }
+    if (filter.wirelessNetwork || filter.wiredNetwork) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function filterDiagnostics<T extends { status: ExperienceSensorOverview['status'] }>(tests: T[], filter: FilterState): T[] {
+  return tests.filter((test) => filter.states.includes(test.status));
+}
 
 function App() {
   const { data, loading, error, refresh, refreshing, summary } = useDashboardData();
-  const [selectedSensorId, setSelectedSensorId] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<'experience' | 'services' | 'internal' | 'external'>('experience');
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [circleTimeRange, setCircleTimeRange] = useState<string>(data.experience.timeRanges[0] ?? 'Last 60 minutes');
+  const [filterState, setFilterState] = useState<FilterState>({
+    states: data.overlays.filterOptions.states,
+    group: null,
+    wirelessNetwork: null,
+    wiredNetwork: null
+  });
 
-  useEffect(() => {
-    if (data.sensors.length === 0) {
-      setSelectedSensorId(null);
-      return;
-    }
-    if (!selectedSensorId || !data.sensors.some((sensor) => sensor.id === selectedSensorId)) {
-      setSelectedSensorId(data.sensors[0].id);
-    }
-  }, [data.sensors, selectedSensorId]);
-
-  const selectedSensor: Sensor | null = useMemo(
-    () => data.sensors.find((sensor) => sensor.id === selectedSensorId) ?? null,
-    [data.sensors, selectedSensorId]
+  const filterStatesKey = useMemo(
+    () => data.overlays.filterOptions.states.join(','),
+    [data.overlays.filterOptions.states]
   );
 
-  const kpis = data.kpis;
+  useEffect(() => {
+    setFilterState((prev) => ({
+      ...prev,
+      states: data.overlays.filterOptions.states
+    }));
+  }, [filterStatesKey, data.overlays.filterOptions.states]);
+
+  const filteredExperienceSensors = useMemo(
+    () => filterSensors(data.experience.sensors, filterState),
+    [data.experience.sensors, filterState]
+  );
+
+  const filteredServiceTests = useMemo(
+    () => filterDiagnostics<ServiceTestOverview>(data.servicesCatalog.tests, filterState),
+    [data.servicesCatalog.tests, filterState]
+  );
+
+  const filteredInternalTests = useMemo(
+    () => filterDiagnostics<DiagnosticTest>(data.internalTests, filterState),
+    [data.internalTests, filterState]
+  );
+
+  const filteredExternalTests = useMemo(
+    () => filterDiagnostics<DiagnosticTest>(data.externalTests, filterState),
+    [data.externalTests, filterState]
+  );
+
+  const filteredTiles = useMemo(() => filterTiles(data.tiles, filterState), [data.tiles, filterState]);
+
+  const tileLookup = useMemo(() => new Map(data.tiles.map((tile) => [tile.id, tile])), [data.tiles]);
+  const experienceByName = useMemo(
+    () => new Map(data.experience.sensors.map((sensor) => [sensor.name, sensor.id])),
+    [data.experience.sensors]
+  );
+
+  useEffect(() => {
+    const options =
+      selectedCategory === 'services'
+        ? data.servicesCatalog.timeRanges
+        : selectedCategory === 'internal' || selectedCategory === 'external'
+          ? data.servicesCatalog.timeRanges
+          : data.experience.timeRanges;
+    if (!options.includes(circleTimeRange)) {
+      setCircleTimeRange(options[0] ?? circleTimeRange);
+    }
+  }, [circleTimeRange, data.experience.timeRanges, data.servicesCatalog.timeRanges, selectedCategory]);
+
+  useEffect(() => {
+    const items = (() => {
+      switch (selectedCategory) {
+        case 'experience':
+          return filteredExperienceSensors;
+        case 'services':
+          return filteredServiceTests;
+        case 'internal':
+          return filteredInternalTests;
+        case 'external':
+          return filteredExternalTests;
+        default:
+          return [];
+      }
+    })();
+    if (!items.some((item) => item.id === selectedItemId)) {
+      setSelectedItemId(items[0]?.id ?? null);
+    }
+  }, [filteredExperienceSensors, filteredServiceTests, filteredInternalTests, filteredExternalTests, selectedCategory, selectedItemId]);
+
+  const timeRanges = useMemo(() => {
+    switch (selectedCategory) {
+      case 'services':
+        return data.servicesCatalog.timeRanges;
+      case 'internal':
+      case 'external':
+        return data.servicesCatalog.timeRanges;
+      default:
+        return data.experience.timeRanges;
+    }
+  }, [data.experience.timeRanges, data.servicesCatalog.timeRanges, selectedCategory]);
 
   return (
-    <Layout generatedAt={data.generatedAt} onRefresh={refresh} refreshing={refreshing} summary={summary}>
+    <Layout
+      generatedAt={data.generatedAt}
+      onRefresh={refresh}
+      refreshing={refreshing}
+      summary={summary}
+      updates={data.overlays.updates}
+      notifications={data.overlays.notifications}
+      filterOptions={data.overlays.filterOptions}
+      filterState={filterState}
+      onFilterChange={setFilterState}
+      counts={data.counts}
+    >
       {loading && <LoadingState />}
       {error && <ErrorBanner message={error} onRetry={refresh} />}
 
-      <div className="grid gap-6 lg:grid-cols-4">
-        <KpiCard
-          title="Global availability"
-          value={formatPercent(kpis.globalAvailability)}
-          change={kpis.availabilityChange}
-          subtitle="Rolling 7-day window"
-          icon={<Globe2 className="h-6 w-6" />}
-        />
-        <KpiCard
-          title="Median latency"
-          value={`${kpis.medianLatency.toFixed(0)} ms`}
-          change={kpis.latencyChange}
-          subtitle="Sensor to SaaS"
-          icon={<Activity className="h-6 w-6" />}
-        />
-        <KpiCard
-          title="Active incidents"
-          value={kpis.activeIncidents.toString()}
-          change={kpis.incidentChange}
-          subtitle="Across global fleet"
-          icon={<AlertTriangle className="h-6 w-6" />}
-        />
-        <KpiCard
-          title="Cloud ingest"
-          value={formatRate(kpis.ingestRate)}
-          change={kpis.ingestChange}
-          subtitle="Events streaming"
-          icon={<Cloud className="h-6 w-6" />}
-        />
-      </div>
+      <CirclesDashboard
+        experienceSensors={filteredExperienceSensors}
+        serviceTests={filteredServiceTests}
+        internalTests={filteredInternalTests}
+        externalTests={filteredExternalTests}
+        selectedCategory={selectedCategory}
+        onSelectCategory={(category) => {
+          setSelectedCategory(category);
+        }}
+        selectedItemId={selectedItemId}
+        onSelectItem={setSelectedItemId}
+        timeRanges={timeRanges}
+        selectedTimeRange={circleTimeRange}
+        onTimeRangeChange={setCircleTimeRange}
+      />
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <TimelineChart points={data.timeline} reportingWindow={data.reportingWindow} />
-        </div>
-        <AlertsPanel alerts={data.alerts} />
-      </div>
+      <TileViewByStatus
+        sensors={filteredTiles}
+        onSelect={(sensorId) => {
+          const tile = tileLookup.get(sensorId);
+          if (tile) {
+            const sensorIdMatch = experienceByName.get(tile.name) ?? null;
+            setSelectedCategory('experience');
+            setSelectedItemId(sensorIdMatch);
+          }
+        }}
+      />
 
-      <div className="mt-8">
-        <JourneyGrid journeys={data.journeys} />
-      </div>
+      <PathAnalysisSection data={data.pathAnalysis} />
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-3">
-          <SensorTable sensors={data.sensors} selectedSensorId={selectedSensorId} onSelect={(id) => setSelectedSensorId(id)} />
+      <SettingsManagementSection
+        groups={data.management.groups}
+        sensors={data.management.sensors}
+        agents={data.management.agents}
+        networks={data.management.networks}
+        services={data.management.services}
+      />
+
+      <AlertsCenter config={data.alertsConfig} />
+
+      <footer className="mt-10 rounded-3xl border border-white/10 bg-white/5 p-6 text-sm text-white/70">
+        <div className="flex flex-col gap-2 text-xs uppercase tracking-wide text-white/60 md:flex-row md:items-center md:justify-between">
+          <span>Sensors online: <span className="text-white">{data.counts.sensorsOnline}</span></span>
+          <span>Agents online: <span className="text-white">{data.counts.agentsOnline}</span></span>
+          <span>Reporting window: <span className="text-white">{data.reportingWindow}</span></span>
         </div>
-        <div className="lg:col-span-2">
-          <SensorDetailPanel sensor={selectedSensor} />
-        </div>
-      </div>
+      </footer>
     </Layout>
   );
 }
