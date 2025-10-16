@@ -2,7 +2,9 @@
 
 This repository packages the Aruba UXI-inspired internet monitoring stack so you can run
 exporters on a Raspberry Pi sensor while Prometheus and Grafana live on a central Ubuntu
-server. Follow the steps below to bring both pieces online with Ansible.
+server. Follow the steps below to bring both pieces online with Ansible. If you
+need a full production runbook (including prerequisites, validation, and
+operational checks) see [`docs/deployment.md`](docs/deployment.md).
 
 ## 1. Prerequisites
 
@@ -98,6 +100,32 @@ ansible-playbook -i inventory.ini main.yml
    anything manually.
 3. Browse Grafana via Nginx/HTTPS (or Tailscale) using the credentials configured in
    `grafana/config.monitoring` and rotate the admin password immediately.
+
+## Dashboard Website
+
+The repository includes a React/Vite dashboard under `dashboard/` that consumes
+the pipeline API and WebSocket stream. To build and host it:
+
+```bash
+cd dashboard
+npm install
+npm run build
+```
+
+Copy `dashboard/dist/` to your web server and expose it via HTTPS. Configure the
+following environment variables (for example in `.env.production`) before
+building:
+
+- `VITE_DASHBOARD_API_BASE` – Base URL for the pipeline REST API (e.g.
+  `https://monitor.example.com/pipeline`).
+- `VITE_DASHBOARD_STREAM_URL` – Optional explicit WebSocket endpoint. If unset,
+  the app derives one from `VITE_DASHBOARD_API_BASE` and `VITE_DASHBOARD_STREAM_PORT`.
+- `VITE_DASHBOARD_STREAM_PORT` – Optional port override when deriving the stream
+  URL.
+
+Without these variables the dashboard falls back to the bundled sample data in
+`dashboard/public/data/dashboard.json`. See [`docs/deployment.md`](docs/deployment.md)
+for a complete deployment walkthrough, including reverse-proxy guidance.
 
 ## Manual Docker Workflow (Alternative)
 
