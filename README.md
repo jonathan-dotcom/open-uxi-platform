@@ -2,7 +2,9 @@
 
 This repository packages the Aruba UXI-inspired internet monitoring stack so you can run
 exporters on a Raspberry Pi sensor while Prometheus and Grafana live on a central Ubuntu
-server. Follow the steps below to bring both pieces online with Ansible.
+server. Follow the steps below to bring both pieces online with Ansible. If you
+need a full production runbook (including prerequisites, validation, and
+operational checks) see [`docs/deployment.md`](docs/deployment.md).
 
 ## 1. Prerequisites
 
