@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
-from typing import List, Optional, Set
+from typing import Dict, List, Optional, Set
 
 from ..common.auth import constant_time_compare, extract_bearer
 from .snapshot_cache import Snapshot, SnapshotCache
@@ -18,6 +18,8 @@ class SnapshotStreamer:
         self._clients: Set["websockets.WebSocketServerProtocol"] = set()
         self._lock = asyncio.Lock()
         self._server = None
+        self._latest_dashboard: Optional[Dict[str, object]] = None
+        self._latest_dashboard_message: Optional[str] = None
 
     async def start(self, host: str, port: int, *, ssl_context=None):
         import websockets
@@ -53,6 +55,23 @@ class SnapshotStreamer:
         )
         await self._publish(payload)
 
+    async def broadcast_dashboard(self, payload: Dict[str, object]) -> None:
+        message = json.dumps(
+            {
+                "type": "dashboard",
+                "dashboard": payload,
+            }
+        )
+        # Store the latest dashboard so new clients receive it immediately after connecting.
+        self._latest_dashboard = dict(payload)
+        self._latest_dashboard_message = message
+        await self._publish(message)
+
+    def latest_dashboard(self) -> Optional[Dict[str, object]]:
+        if self._latest_dashboard is None:
+            return None
+        return dict(self._latest_dashboard)
+
     async def _handler(self, websocket, path):
         if self._token:
             token = extract_bearer(websocket.request_headers.get("Authorization"))
@@ -63,6 +82,8 @@ class SnapshotStreamer:
             self._clients.add(websocket)
         try:
             await self.broadcast_all()
+            if self._latest_dashboard_message:
+                await websocket.send(self._latest_dashboard_message)
             async for _ in websocket:
                 continue
         finally:

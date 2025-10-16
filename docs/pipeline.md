@@ -113,6 +113,4 @@ Recommended alerts:
 - Wire the control channel into the existing Ansible roles (render service units for the agent
   and control server).
 - Replace JSON transports with generated Protobuf messages when toolchains are available.
-- Extend `SnapshotCache` to publish Grafana-ready summaries and live streaming to the existing
-  dashboard WebSocket.
 - Add trace propagation (e.g., OpenTelemetry) once the central collector is online.
