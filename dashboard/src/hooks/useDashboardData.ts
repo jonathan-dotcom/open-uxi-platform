@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DashboardSnapshot } from '../types';
 import { fallbackDashboard } from '../data/sampleData';
 
@@ -34,12 +34,117 @@ function resolveApiUrl(path: string): string {
   return `${normalized}${path}`;
 }
 
+function resolveStreamUrl(): string | null {
+  const direct = import.meta.env.VITE_DASHBOARD_STREAM_URL as string | undefined;
+  if (direct) {
+    return direct;
+  }
+  const base = import.meta.env.VITE_DASHBOARD_API_BASE as string | undefined;
+  if (!base) {
+    return null;
+  }
+  try {
+    const url = new URL(base);
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    const streamPortEnv = import.meta.env.VITE_DASHBOARD_STREAM_PORT as string | undefined;
+    const streamPortEnvIsNumeric = !!streamPortEnv && /^\d+$/.test(streamPortEnv);
+    if (streamPortEnv && !streamPortEnvIsNumeric) {
+      console.warn('Ignoring invalid VITE_DASHBOARD_STREAM_PORT value; expected numeric port');
+    }
+    const streamPort = streamPortEnvIsNumeric ? streamPortEnv : '8766';
+    url.port = streamPort;
+    url.pathname = '/';
+    return url.toString();
+  } catch (error) {
+    console.warn('Failed to derive stream URL from API base', error);
+    return null;
+  }
+}
+
+function isDashboardPayload(value: unknown): value is DashboardSnapshot {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const payload = value as Record<string, unknown>;
+  return (
+    typeof payload.generatedAt === 'string' &&
+    typeof payload.reportingWindow === 'string' &&
+    typeof payload.kpis === 'object' &&
+    Array.isArray(payload.timeline) &&
+    Array.isArray(payload.sensors) &&
+    Array.isArray(payload.journeys)
+  );
+}
+
+function decodeBase64Json(value: unknown): unknown {
+  if (typeof value !== 'string' || value.length === 0) {
+    return null;
+  }
+  try {
+    const decoder = typeof atob === 'function' ? atob : null;
+    if (!decoder) {
+      console.warn('Base64 decoder unavailable in this environment');
+      return null;
+    }
+    const decoded = decoder(value);
+    return JSON.parse(decoded) as unknown;
+  } catch (error) {
+    console.warn('Failed to decode base64 snapshot payload', error);
+    return null;
+  }
+}
+
+function extractDashboardFromStream(message: unknown): DashboardSnapshot | null {
+  if (!message || typeof message !== 'object') {
+    return null;
+  }
+  const payload = message as Record<string, unknown>;
+  switch (payload.type) {
+    case 'dashboard': {
+      const dashboard = payload.dashboard;
+      return isDashboardPayload(dashboard) ? dashboard : null;
+    }
+    case 'snapshot': {
+      const snapshot = payload.snapshot as Record<string, unknown> | undefined;
+      if (!snapshot) return null;
+      if (isDashboardPayload(snapshot.payload_json)) {
+        return snapshot.payload_json;
+      }
+      const decoded = decodeBase64Json(snapshot.payload_base64);
+      return isDashboardPayload(decoded) ? decoded : null;
+    }
+    case 'snapshot_batch': {
+      const snapshots = payload.snapshots;
+      if (!Array.isArray(snapshots)) {
+        return null;
+      }
+      for (const entry of snapshots) {
+        if (entry && typeof entry === 'object') {
+          const record = entry as Record<string, unknown>;
+          if (isDashboardPayload(record.payload_json)) {
+            return record.payload_json;
+          }
+          const decoded = decodeBase64Json(record.payload_base64);
+          if (isDashboardPayload(decoded)) {
+            return decoded;
+          }
+        }
+      }
+      return null;
+    }
+    default:
+      return null;
+  }
+}
+
 export function useDashboardData() {
   const [data, setData] = useState<DashboardSnapshot>(fallbackDashboard);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const pipelineEndpoint = useMemo(() => resolveApiUrl('/v1/dashboard'), []);
+  const streamUrl = useMemo(() => resolveStreamUrl(), []);
+  const streamRef = useRef<WebSocket | null>(null);
 
   const fetchSnapshot = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -97,6 +202,64 @@ export function useDashboardData() {
     fetchSnapshot(controller.signal);
     return () => controller.abort();
   }, [fetchSnapshot]);
+
+  useEffect(() => {
+    if (!streamUrl) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const connect = () => {
+      if (cancelled) {
+        return;
+      }
+      try {
+        const ws = new WebSocket(streamUrl);
+        streamRef.current = ws;
+
+        ws.onmessage = (event) => {
+          try {
+            const payload = JSON.parse(event.data) as unknown;
+            const dashboard = extractDashboardFromStream(payload);
+            if (dashboard) {
+              setData(coerceSnapshot(dashboard));
+              setError(null);
+              setLoading(false);
+            }
+          } catch (streamError) {
+            console.warn('Failed to process dashboard stream message', streamError);
+          }
+        };
+
+        ws.onclose = () => {
+          streamRef.current = null;
+          if (!cancelled) {
+            reconnectTimer = setTimeout(connect, 5000);
+          }
+        };
+
+        ws.onerror = () => {
+          ws.close();
+        };
+      } catch (connectionError) {
+        console.warn('Failed to establish dashboard stream connection', connectionError);
+        reconnectTimer = setTimeout(connect, 5000);
+      }
+    };
+
+    connect();
+
+    return () => {
+      cancelled = true;
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+      }
+      streamRef.current?.close();
+      streamRef.current = null;
+    };
+  }, [streamUrl]);
 
   const summary = useMemo(
     () => ({

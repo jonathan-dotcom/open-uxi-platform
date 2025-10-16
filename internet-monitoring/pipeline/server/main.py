@@ -84,6 +84,12 @@ async def run_server(config: Dict[str, Any], *, config_path: Optional[Path] = No
         snapshot = snapshot_cache.update_from_ingest(result)
         if snapshot:
             await streamer.broadcast(snapshot)
+            await streamer.broadcast_dashboard(
+                build_dashboard_payload(
+                    snapshot_cache,
+                    sample_path=sample_path_obj,
+                )
+            )
 
     async def handle_heartbeat(sensor_id: str, heartbeat) -> None:
         offsets.update(sensor_id, int(heartbeat.last_committed_sequence))
@@ -96,6 +102,7 @@ async def run_server(config: Dict[str, Any], *, config_path: Optional[Path] = No
     sample_path = dashboard_cfg.get("sample_path")
     if sample_path and config_path and not Path(sample_path).is_absolute():
         sample_path = str((config_path.parent / sample_path).resolve())
+    sample_path_obj = Path(sample_path).expanduser() if sample_path else None
 
     allow_origins: Iterable[str] | None = dashboard_cfg.get("allow_origins")
     if allow_origins is None:
@@ -106,7 +113,7 @@ async def run_server(config: Dict[str, Any], *, config_path: Optional[Path] = No
     def dashboard_provider() -> Dict[str, Any]:
         return build_dashboard_payload(
             snapshot_cache,
-            sample_path=Path(sample_path) if sample_path else None,
+            sample_path=sample_path_obj,
         )
 
     ingest_service = ChunkIngestService(
@@ -154,6 +161,7 @@ async def run_server(config: Dict[str, Any], *, config_path: Optional[Path] = No
         stream_cfg.get("bind", "0.0.0.0"),
         stream_cfg.get("port", 8766),
     )
+    await streamer.broadcast_dashboard(dashboard_provider())
 
     stop_event = asyncio.Event()
     loop = asyncio.get_running_loop()
