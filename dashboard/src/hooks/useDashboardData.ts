@@ -46,6 +46,13 @@ function resolveStreamUrl(): string | null {
   try {
     const url = new URL(base);
     url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    const streamPortEnv = import.meta.env.VITE_DASHBOARD_STREAM_PORT as string | undefined;
+    const streamPortEnvIsNumeric = !!streamPortEnv && /^\d+$/.test(streamPortEnv);
+    if (streamPortEnv && !streamPortEnvIsNumeric) {
+      console.warn('Ignoring invalid VITE_DASHBOARD_STREAM_PORT value; expected numeric port');
+    }
+    const streamPort = streamPortEnvIsNumeric ? streamPortEnv : '8766';
+    url.port = streamPort;
     url.pathname = '/';
     return url.toString();
   } catch (error) {

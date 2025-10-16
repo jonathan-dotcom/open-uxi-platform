@@ -263,7 +263,7 @@ The dev server starts on http://localhost:5173 and serves a multi-panel overview
 - The React app first queries the pipeline server's `/v1/dashboard` endpoint (served from the ingest process on port `8081`). When that API is unreachable it falls back to `/data/dashboard.json`, which is backed by `dashboard/public/data/dashboard.json` during development.
 - You can control the dashboard CORS policy and sample fallback via the `dashboard` section in `pipeline-server.yml`. By default any origin is allowed so the Vite dev server can talk to the pipeline instance.
 - If the fetch fails, the UI falls back to the curated sample found in `src/data/sampleData.ts` so the layout still renders offline.
-- Live updates stream over the pipeline WebSocket (`ws://<cloud-ip>:8766`). The dashboard will automatically connect using `VITE_DASHBOARD_STREAM_URL` when set; otherwise it derives the address from `VITE_DASHBOARD_API_BASE`. Streaming data immediately replaces the last snapshot without requiring a manual refresh.
+- Live updates stream over the pipeline WebSocket (`ws://<cloud-ip>:8766`). The dashboard will automatically connect using `VITE_DASHBOARD_STREAM_URL` when set; otherwise it derives the address from `VITE_DASHBOARD_API_BASE` and defaults the port to `8766` (override with `VITE_DASHBOARD_STREAM_PORT`). Streaming data immediately replaces the last snapshot without requiring a manual refresh.
 - Update the JSON payload to reflect your sensors, journeys, and alerts. The schema matches the TypeScript types in `src/types.ts`, making it straightforward to extend with real pipeline fields.
 - Trigger a hard refresh (Ctrl+Shift+R) or use the **Refresh data** button in the UI after swapping out the backing API.
 
