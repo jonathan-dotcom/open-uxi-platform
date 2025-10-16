@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { DashboardSnapshot } from '../types';
+import type {
+  DashboardSnapshot,
+  SensorPerformancePoint,
+  ServiceMetricSeries,
+  TimelinePoint
+} from '../types';
 import { fallbackDashboard } from '../data/sampleData';
 
 type WithTimestamp<T> = T & { timestamp: string };
@@ -8,20 +13,91 @@ function sortByTimestamp<T>(points: WithTimestamp<T>[]): WithTimestamp<T>[] {
   return [...points].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 }
 
-function coerceSnapshot(snapshot: DashboardSnapshot): DashboardSnapshot {
+function normalizePerformance(points: SensorPerformancePoint[]): SensorPerformancePoint[] {
+  return [...points]
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+    .map((point) => ({
+      ...point,
+      availability: Number(point.availability.toFixed(2)),
+      latencyMs: Number(point.latencyMs.toFixed(0)),
+      jitterMs: Number(point.jitterMs.toFixed(0)),
+      packetLoss: Number(point.packetLoss.toFixed(2))
+    }));
+}
+
+function normalizeMetricSeries(series: ServiceMetricSeries): ServiceMetricSeries {
   return {
-    ...snapshot,
-    timeline: sortByTimestamp(snapshot.timeline),
-    sensors: snapshot.sensors.map((sensor) => ({
-      ...sensor,
-      performance: sortByTimestamp(sensor.performance).map((point) => ({
+    ...series,
+    points: [...series.points]
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+      .map((point) => ({
         ...point,
-        availability: Number(point.availability.toFixed(2)),
-        latencyMs: Number(point.latencyMs.toFixed(0)),
-        jitterMs: Number(point.jitterMs.toFixed(0)),
-        packetLoss: Number(point.packetLoss.toFixed(2))
+        value: Number(point.value)
       }))
-    }))
+  };
+}
+
+function coerceSnapshot(snapshot: DashboardSnapshot): DashboardSnapshot {
+  const base = fallbackDashboard;
+  const sensors = (snapshot.sensors ?? base.sensors).map((sensor) => ({
+    ...sensor,
+    performance: normalizePerformance(sensor.performance)
+  }));
+
+  const experienceSensors = (snapshot.experience?.sensors ?? base.experience.sensors).map((sensor) => ({
+    ...sensor,
+    performance: normalizePerformance(sensor.performance)
+  }));
+
+  const serviceTests = (snapshot.servicesCatalog?.tests ?? base.servicesCatalog.tests).map((test) => ({
+    ...test,
+    metrics: test.metrics.map((series) => normalizeMetricSeries(series))
+  }));
+
+  const internalTests = (snapshot.internalTests ?? base.internalTests).map((test) => ({
+    ...test,
+    metrics: test.metrics.map((series) => normalizeMetricSeries(series))
+  }));
+
+  const externalTests = (snapshot.externalTests ?? base.externalTests).map((test) => ({
+    ...test,
+    metrics: test.metrics.map((series) => normalizeMetricSeries(series))
+  }));
+
+  const servicesInventory = (snapshot.management?.services ?? base.management.services).map((service) => ({
+    ...service,
+    metrics: service.metrics.map((series) => normalizeMetricSeries(series))
+  }));
+
+  return {
+    ...base,
+    ...snapshot,
+    timeline: sortByTimestamp((snapshot.timeline ?? base.timeline) as WithTimestamp<TimelinePoint>[]),
+    sensors,
+    alerts: snapshot.alerts ?? base.alerts,
+    experience: {
+      timeRanges: snapshot.experience?.timeRanges ?? base.experience.timeRanges,
+      sensors: experienceSensors
+    },
+    servicesCatalog: {
+      timeRanges: snapshot.servicesCatalog?.timeRanges ?? base.servicesCatalog.timeRanges,
+      tests: serviceTests
+    },
+    internalTests,
+    externalTests,
+    tiles: snapshot.tiles ?? base.tiles,
+    pathAnalysis: snapshot.pathAnalysis ?? base.pathAnalysis,
+    overlays: snapshot.overlays ?? base.overlays,
+    management: {
+      groups: snapshot.management?.groups ?? base.management.groups,
+      sensors: snapshot.management?.sensors ?? base.management.sensors,
+      agents: snapshot.management?.agents ?? base.management.agents,
+      networks: snapshot.management?.networks ?? base.management.networks,
+      services: servicesInventory
+    },
+    alertsConfig: snapshot.alertsConfig ?? base.alertsConfig,
+    account: snapshot.account ?? base.account,
+    counts: snapshot.counts ?? base.counts
   };
 }
 
@@ -66,13 +142,42 @@ function isDashboardPayload(value: unknown): value is DashboardSnapshot {
     return false;
   }
   const payload = value as Record<string, unknown>;
+  const experience = payload.experience as Record<string, unknown> | undefined;
+  const servicesCatalog = payload.servicesCatalog as Record<string, unknown> | undefined;
+  const pathAnalysis = payload.pathAnalysis as Record<string, unknown> | undefined;
+  const overlays = payload.overlays as Record<string, unknown> | undefined;
+  const management = payload.management as Record<string, unknown> | undefined;
+  const alertsConfig = payload.alertsConfig as Record<string, unknown> | undefined;
+  const counts = payload.counts as Record<string, unknown> | undefined;
+  const account = payload.account as Record<string, unknown> | undefined;
+
   return (
     typeof payload.generatedAt === 'string' &&
     typeof payload.reportingWindow === 'string' &&
     typeof payload.kpis === 'object' &&
     Array.isArray(payload.timeline) &&
     Array.isArray(payload.sensors) &&
-    Array.isArray(payload.journeys)
+    Array.isArray(payload.journeys) &&
+    experience !== undefined &&
+    Array.isArray(experience.sensors as unknown[]) &&
+    servicesCatalog !== undefined &&
+    Array.isArray(servicesCatalog.tests as unknown[]) &&
+    Array.isArray(payload.internalTests as unknown[]) &&
+    Array.isArray(payload.externalTests as unknown[]) &&
+    Array.isArray(payload.tiles as unknown[]) &&
+    pathAnalysis !== undefined &&
+    Array.isArray(pathAnalysis.routes as unknown[]) &&
+    overlays !== undefined &&
+    typeof overlays.filterOptions === 'object' &&
+    management !== undefined &&
+    typeof management.groups === 'object' &&
+    typeof management.sensors === 'object' &&
+    typeof management.agents === 'object' &&
+    typeof management.networks === 'object' &&
+    typeof management.services === 'object' &&
+    alertsConfig !== undefined &&
+    counts !== undefined &&
+    account !== undefined
   );
 }
 
