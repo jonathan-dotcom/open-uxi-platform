@@ -7,7 +7,7 @@ import json
 import ssl
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Awaitable, Callable, Mapping, Optional
+from typing import Awaitable, Callable, Mapping, Optional, Sequence
 
 from ..common.auth import constant_time_compare, extract_bearer
 from ..common.messages import DataChunk
@@ -16,6 +16,7 @@ from .offsets import OffsetTracker
 from .store import ChunkStore, IngestResult
 
 OnSnapshotCallback = Callable[[IngestResult], Awaitable[None] | None]
+DashboardProvider = Callable[[], Mapping[str, object]]
 
 
 class ChunkIngestService:
@@ -28,6 +29,8 @@ class ChunkIngestService:
         loop: Optional[asyncio.AbstractEventLoop] = None,
         on_snapshot: Optional[OnSnapshotCallback] = None,
         sensor_tokens: Optional[Mapping[str, str]] = None,
+        dashboard_provider: Optional[DashboardProvider] = None,
+        allowed_origins: Optional[Sequence[str]] = None,
     ) -> None:
         self._store = store
         self._control = control
@@ -35,9 +38,31 @@ class ChunkIngestService:
         self._loop = loop
         self._on_snapshot = on_snapshot
         self._tokens = dict(sensor_tokens or {})
+        self._dashboard_provider = dashboard_provider
+        self._allowed_origins = list(allowed_origins or [])
 
     def set_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         self._loop = loop
+
+    def set_dashboard_provider(self, provider: Optional[DashboardProvider]) -> None:
+        self._dashboard_provider = provider
+
+    def dashboard(self) -> Mapping[str, object]:
+        if self._dashboard_provider is None:
+            raise LookupError("dashboard provider not configured")
+        payload = self._dashboard_provider()
+        if not isinstance(payload, Mapping):
+            raise TypeError("dashboard provider must return a mapping")
+        return payload
+
+    def resolve_cors_origin(self, origin: Optional[str]) -> Optional[str]:
+        if not self._allowed_origins:
+            return None
+        if "*" in self._allowed_origins:
+            return "*"
+        if origin and origin in self._allowed_origins:
+            return origin
+        return None
 
     def ingest(self, payload: bytes, headers: dict) -> tuple[int, dict]:
         body = json.loads(payload.decode("utf-8"))
@@ -109,6 +134,21 @@ class ChunkIngestService:
 
 def build_handler(service: ChunkIngestService):
     class Handler(BaseHTTPRequestHandler):
+        def _write_json(self, status: int, payload: Mapping[str, object]) -> None:
+            data = json.dumps(payload).encode("utf-8")
+            self.send_response(status)
+            origin = service.resolve_cors_origin(self.headers.get("Origin"))
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            if origin:
+                self.send_header("Access-Control-Allow-Origin", origin)
+                if origin != "*":
+                    self.send_header("Vary", "Origin")
+                self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+                self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.end_headers()
+            self.wfile.write(data)
+
         def do_POST(self):  # noqa: N802
             if self.path != "/v1/ingest/chunk":
                 self.send_error(HTTPStatus.NOT_FOUND, "unknown path")
@@ -126,12 +166,45 @@ def build_handler(service: ChunkIngestService):
                     f"failed to ingest chunk: {exc}",
                 )
                 return
-            data = json.dumps(response).encode("utf-8")
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(data)))
+            self._write_json(status, response)
+
+        def do_GET(self):  # noqa: N802
+            if self.path == "/v1/dashboard":
+                try:
+                    payload = service.dashboard()
+                except LookupError:
+                    self.send_error(HTTPStatus.NOT_FOUND, "dashboard not enabled")
+                    return
+                except Exception as exc:  # pragma: no cover - defensive path
+                    self.send_error(
+                        HTTPStatus.INTERNAL_SERVER_ERROR,
+                        f"failed to build dashboard payload: {exc}",
+                    )
+                    return
+                self._write_json(HTTPStatus.OK, payload)
+                return
+            if self.path in {"/healthz", "/"}:
+                self.send_response(HTTPStatus.NO_CONTENT)
+                origin = service.resolve_cors_origin(self.headers.get("Origin"))
+                if origin:
+                    self.send_header("Access-Control-Allow-Origin", origin)
+                    if origin != "*":
+                        self.send_header("Vary", "Origin")
+                self.end_headers()
+                return
+            self.send_error(HTTPStatus.NOT_FOUND, "unknown path")
+
+        def do_OPTIONS(self):  # noqa: N802
+            origin = service.resolve_cors_origin(self.headers.get("Origin"))
+            self.send_response(HTTPStatus.NO_CONTENT)
+            if origin:
+                self.send_header("Access-Control-Allow-Origin", origin)
+                if origin != "*":
+                    self.send_header("Vary", "Origin")
+                self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+                self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+                self.send_header("Access-Control-Max-Age", "600")
             self.end_headers()
-            self.wfile.write(data)
 
         def log_message(self, fmt, *args):  # noqa: D401 - standard signature
             # Silence default logging; upstream logger should handle messages.

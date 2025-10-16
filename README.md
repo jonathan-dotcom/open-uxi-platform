@@ -243,3 +243,33 @@ the resilient sensor delivery pipeline directly from this repository.
   ```
 
 For deeper architectural notes, payload format, metrics, and TLS guidance read `docs/pipeline.md`.
+
+## UXI Control Center web dashboard
+
+A React + Vite front-end is available under `dashboard/` to mirror the Aruba UXI experience with richer visualizations than the bundled Grafana dashboards.
+
+### Run locally
+
+```bash
+cd dashboard
+npm install
+npm run dev
+```
+
+The dev server starts on http://localhost:5173 and serves a multi-panel overview (KPIs, time-series trends, journeys, active incidents, and a sensor drill-down experience) backed by the bundled snapshot JSON.
+
+### Data sources and integration
+
+- The React app first queries the pipeline server's `/v1/dashboard` endpoint (served from the ingest process on port `8081`). When that API is unreachable it falls back to `/data/dashboard.json`, which is backed by `dashboard/public/data/dashboard.json` during development.
+- You can control the dashboard CORS policy and sample fallback via the `dashboard` section in `pipeline-server.yml`. By default any origin is allowed so the Vite dev server can talk to the pipeline instance.
+- If the fetch fails, the UI falls back to the curated sample found in `src/data/sampleData.ts` so the layout still renders offline.
+- Update the JSON payload to reflect your sensors, journeys, and alerts. The schema matches the TypeScript types in `src/types.ts`, making it straightforward to extend with real pipeline fields.
+- Trigger a hard refresh (Ctrl+Shift+R) or use the **Refresh data** button in the UI after swapping out the backing API.
+
+### Production build
+
+```bash
+npm run build
+```
+
+The static assets land in `dashboard/dist/` and can be served behind the same HTTPS endpoint you already publish for Grafana.
