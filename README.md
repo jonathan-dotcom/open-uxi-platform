@@ -101,32 +101,6 @@ ansible-playbook -i inventory.ini main.yml
 3. Browse Grafana via Nginx/HTTPS (or Tailscale) using the credentials configured in
    `grafana/config.monitoring` and rotate the admin password immediately.
 
-## Dashboard Website
-
-The repository includes a React/Vite dashboard under `dashboard/` that consumes
-the pipeline API and WebSocket stream. To build and host it:
-
-```bash
-cd dashboard
-npm install
-npm run build
-```
-
-Copy `dashboard/dist/` to your web server and expose it via HTTPS. Configure the
-following environment variables (for example in `.env.production`) before
-building:
-
-- `VITE_DASHBOARD_API_BASE` – Base URL for the pipeline REST API (e.g.
-  `https://monitor.example.com/pipeline`).
-- `VITE_DASHBOARD_STREAM_URL` – Optional explicit WebSocket endpoint. If unset,
-  the app derives one from `VITE_DASHBOARD_API_BASE` and `VITE_DASHBOARD_STREAM_PORT`.
-- `VITE_DASHBOARD_STREAM_PORT` – Optional port override when deriving the stream
-  URL.
-
-Without these variables the dashboard falls back to the bundled sample data in
-`dashboard/public/data/dashboard.json`. See [`docs/deployment.md`](docs/deployment.md)
-for a complete deployment walkthrough, including reverse-proxy guidance.
-
 ## Manual Docker Workflow (Alternative)
 
 If you prefer to skip Ansible:
@@ -272,33 +246,3 @@ the resilient sensor delivery pipeline directly from this repository.
 
 For deeper architectural notes, payload format, metrics, and TLS guidance read `docs/pipeline.md`.
 
-## UXI Control Center web dashboard
-
-A React + Vite front-end is available under `dashboard/` to mirror the Aruba UXI experience with richer visualizations than the bundled Grafana dashboards.
-
-### Run locally
-
-```bash
-cd dashboard
-npm install
-npm run dev
-```
-
-The dev server starts on http://localhost:5173 and serves a multi-panel overview (KPIs, time-series trends, journeys, active incidents, and a sensor drill-down experience) backed by the bundled snapshot JSON.
-
-### Data sources and integration
-
-- The React app first queries the pipeline server's `/v1/dashboard` endpoint (served from the ingest process on port `8081`). When that API is unreachable it falls back to `/data/dashboard.json`, which is backed by `dashboard/public/data/dashboard.json` during development.
-- You can control the dashboard CORS policy and sample fallback via the `dashboard` section in `pipeline-server.yml`. By default any origin is allowed so the Vite dev server can talk to the pipeline instance.
-- If the fetch fails, the UI falls back to the curated sample found in `src/data/sampleData.ts` so the layout still renders offline.
-- Live updates stream over the pipeline WebSocket (`ws://<cloud-ip>:8766`). The dashboard will automatically connect using `VITE_DASHBOARD_STREAM_URL` when set; otherwise it derives the address from `VITE_DASHBOARD_API_BASE` and defaults the port to `8766` (override with `VITE_DASHBOARD_STREAM_PORT`). Streaming data immediately replaces the last snapshot without requiring a manual refresh.
-- Update the JSON payload to reflect your sensors, journeys, and alerts. The schema matches the TypeScript types in `src/types.ts`, making it straightforward to extend with real pipeline fields.
-- Trigger a hard refresh (Ctrl+Shift+R) or use the **Refresh data** button in the UI after swapping out the backing API.
-
-### Production build
-
-```bash
-npm run build
-```
-
-The static assets land in `dashboard/dist/` and can be served behind the same HTTPS endpoint you already publish for Grafana.
