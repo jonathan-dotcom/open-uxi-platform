@@ -20,3 +20,8 @@ pipeline_sensor_id_host: "{{ inventory_hostname }}"
 pipeline_sensor_token_host: "b4e670ab73995da3c6db79756c271239"
 pipeline_sensor_control_url_host: "ws://100.119.89.99:8765/control"
 pipeline_sensor_ingest_url_host: "http://100.119.89.99:8081/v1/ingest/chunk"
+
+sensor_wifi_networks:
+  - ssid: "myITS-FreeWiFi"
+    scan_ssid: true
+    priority: 10

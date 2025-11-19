@@ -1,0 +1,85 @@
+---
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
+- name: Determine if NetworkManager manages Wi-Fi
+  ansible.builtin.set_fact:
+    sensor_wifi_use_network_manager: "{{ (ansible_facts.services.get('NetworkManager.service', {}).state | default('')) == 'running' }}"
+
+- name: Configure open Wi-Fi networks via NetworkManager
+  community.general.nmcli:
+    conn_name: "{{ item.conn_name | default(item.ssid) }}"
+    ifname: "{{ item.iface | default(wifi_exporter_iface | default('wlan0')) }}"
+    type: wifi
+    ssid: "{{ item.ssid }}"
+    autoconnect: true
+    autoconnect_priority: "{{ item.priority | default(omit) }}"
+    wifi_sec:
+      key-mgmt: "{{ (item.key_mgmt | default('none')) | lower }}"
+    conn_reload: true
+    state: present
+  loop: "{{ sensor_wifi_networks }}"
+  when:
+    - sensor_wifi_use_network_manager
+    - item.psk is not defined
+
+- name: Configure secured Wi-Fi networks via NetworkManager
+  community.general.nmcli:
+    conn_name: "{{ item.conn_name | default(item.ssid) }}"
+    ifname: "{{ item.iface | default(wifi_exporter_iface | default('wlan0')) }}"
+    type: wifi
+    ssid: "{{ item.ssid }}"
+    autoconnect: true
+    autoconnect_priority: "{{ item.priority | default(omit) }}"
+    wifi_sec:
+      key-mgmt: "{{ (item.key_mgmt | default('wpa-psk')) | lower }}"
+      psk: "{{ item.psk }}"
+    conn_reload: true
+    state: present
+  loop: "{{ sensor_wifi_networks }}"
+  when:
+    - sensor_wifi_use_network_manager
+    - item.psk is defined
+
+- name: Ensure wpa_supplicant configuration file exists
+  ansible.builtin.file:
+    path: /etc/wpa_supplicant/wpa_supplicant.conf
+    state: touch
+    owner: root
+    group: root
+    mode: "0600"
+  when: not sensor_wifi_use_network_manager
+
+- name: Configure sensor Wi-Fi networks via wpa_supplicant
+  ansible.builtin.blockinfile:
+    path: /etc/wpa_supplicant/wpa_supplicant.conf
+    create: true
+    marker: "# {mark} Ansible managed network {{ item.ssid }}"
+    block: |
+      network={
+          ssid="{{ item.ssid }}"
+      {% if item.psk is defined %}
+          psk="{{ item.psk }}"
+      {% endif %}
+      {% if item.key_mgmt is defined %}
+          key_mgmt={{ item.key_mgmt }}
+      {% elif item.psk is defined %}
+          key_mgmt=WPA-PSK
+      {% else %}
+          key_mgmt=NONE
+      {% endif %}
+      {% if item.scan_ssid is defined %}
+          scan_ssid={{ 1 if item.scan_ssid else 0 }}
+      {% else %}
+          scan_ssid=1
+      {% endif %}
+      {% if item.priority is defined %}
+          priority={{ item.priority }}
+      {% endif %}
+      {% for extra in item.extra_lines | default([]) %}
+          {{ extra }}
+      {% endfor %}
+      }
+  loop: "{{ sensor_wifi_networks }}"
+  when: not sensor_wifi_use_network_manager
+  notify: Reload wpa_supplicant

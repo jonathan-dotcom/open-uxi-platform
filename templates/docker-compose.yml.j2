@@ -132,6 +132,7 @@ services:
     networks:
       - back-tier
 
+{% if monitoring_speedtest_enable | default(true) %}
   speedtest:
     image: miguelndecarvalho/speedtest-exporter:latest
     restart: always
@@ -144,6 +145,7 @@ services:
       - 9798:9798
     networks:
       - back-tier
+{% endif %}
 
   nodeexp:
     image: prom/node-exporter:latest

@@ -35,6 +35,12 @@
       ansible.builtin.import_tasks: tasks/wifi-exporter.yml
       when: wifi_exporter_enable | default(false)
 
+    - name: Configure sensor Wi-Fi connectivity.
+      ansible.builtin.import_tasks: tasks/wifi-connect.yml
+      when:
+        - "'sensor' in group_names"
+        - (sensor_wifi_networks | default([])) | length > 0
+
     - name: Set up Internet Monitoring.
       ansible.builtin.import_tasks: tasks/internet-monitoring.yml
       when: monitoring_enable

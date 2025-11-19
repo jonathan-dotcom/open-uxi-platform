@@ -32,3 +32,10 @@
     name: wifi_exporter
     state: restarted
     daemon_reload: true
+
+- name: Reload wpa_supplicant configuration
+  ansible.builtin.command: "wpa_cli -i {{ wifi_exporter_iface | default('wlan0') }} reconfigure"
+  register: wpa_cli_reconfigure
+  changed_when: "'OK' in (wpa_cli_reconfigure.stdout | default(''))"
+  failed_when: false
+  listen: Reload wpa_supplicant

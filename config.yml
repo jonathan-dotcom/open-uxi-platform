@@ -18,12 +18,13 @@ pihole_password: "change-this-password"
 
 # Internet monitoring configuration.
 monitoring_enable: true
-monitoring_grafana_admin_password: "admin"
+monitoring_grafana_admin_password: "@Mochi678"
 monitoring_include_prometheus: true
 monitoring_include_grafana: true
 monitoring_include_exporters: true
 monitoring_compose_files:
   - docker-compose.yml
+monitoring_speedtest_enable: false
 monitoring_speedtest_interval: 10m
 monitoring_ping_interval: 10m
 monitoring_ping_hosts:
@@ -59,8 +60,8 @@ monitoring_ping_hosts:
   - https://its.ac.id/;website ITS HTTPS
   - http://www.youtube.com/;YouTube HTTP
   - https://www.youtube.com/;YouTube HTTPS
-  - http://www.zendesk.com/;Zendesk HTTP
-  - https://www.zendesk.com/;Zendesk HTTPS
+  - https://status.zendesk.com/;Zendesk Status
+  - https://support.zendesk.com/hc/en-us;Zendesk Support
 monitoring_icmp_targets:
   - 10.24.0.10;10.24.0.10
   - 10.24.0.13;10.24.0.13
@@ -70,21 +71,13 @@ monitoring_icmp_targets:
   - 202.46.129.3;DNS 202.46.129.3
   - humancapital.its.ac.id;Human capital
   - its.ac.id;ping ke its
-  - www.docusign.com;Docusign
-  - www.dropbox.com;Dropbox
   - eperkantoran.its.ac.id;eperkantoran
-  - www.facebook.com;Facebook
-  - www.github.com;Github
-  - www.google.com;Google
-  - drive.google.com;Google Drive
-  - www.gmail.com;Google Mail
-  - www.hubspot.com;Hubspot
-  - www.linkedin.com;LinkedIn
-  - login.microsoftonline.com;Microsoft Online
   - my.its.ac.id;my.its.ac.id
   - portal.its.ac.id;portal.its.ac.id
-  - www.youtube.com;YouTube
-  - www.zendesk.com;Zendesk
+  - 8.8.8.8;Google DNS
+  - 1.1.1.1;Cloudflare DNS
+  - 9.9.9.9;Quad9 DNS
+  - 208.67.222.222;OpenDNS
 monitoring_dns_interval: 10m
 monitoring_dns_checks:
   - name: "ITS DNS 103.94.188.3"
@@ -103,6 +96,8 @@ monitoring_saas_interval: 10m
 monitoring_saas_journeys:
   - name: "Microsoft 365"
     target: "https://login.microsoftonline.com/"
+
+monitoring_fast_interval: 10m
 
 
 # Sensor-to-server pipeline configuration.

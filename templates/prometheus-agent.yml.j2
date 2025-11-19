@@ -12,14 +12,16 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9100']
 
+{% if monitoring_speedtest_enable | default(true) %}
   - job_name: 'speedtest'
     scrape_interval: {{ monitoring_speedtest_interval }}
     scrape_timeout: 60s
     static_configs:
       - targets: ['localhost:9798']
+{% endif %}
 
   - job_name: 'fast-com'
-    scrape_interval: {{ monitoring_speedtest_interval }}
+    scrape_interval: {{ monitoring_fast_interval | default(monitoring_speedtest_interval) }}
     scrape_timeout: 180s
     static_configs:
       - targets: ['localhost:9801']

@@ -24,7 +24,9 @@ monitoring_include_grafana: true
 monitoring_include_exporters: true
 monitoring_compose_files:
   - docker-compose.yml
+monitoring_speedtest_enable: true
 monitoring_speedtest_interval: 10m
+monitoring_fast_interval: 30m
 monitoring_ping_interval: 10m
 monitoring_ping_hosts:  # [URL];[HUMAN_READABLE_NAME]
   - http://humancapital.its.ac.id/;Human capital HTTP

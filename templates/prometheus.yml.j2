@@ -17,6 +17,7 @@ scrape_configs:
       - targets: ['localhost:9090']
 {% endif %}
 
+{% if monitoring_speedtest_enable | default(true) %}
 {% set derived_speedtest_targets = groups.get('sensor', []) | map('extract', hostvars, 'speedtest_exporter_target') | select('defined') | reject('equalto', '') | list %}
 {% set speedtest_targets = prometheus_speedtest_targets | default(derived_speedtest_targets, true) %}
 {% if not speedtest_targets %}{% set speedtest_targets = ['speedtest:9798'] %}{% endif %}
@@ -27,6 +28,7 @@ scrape_configs:
     scrape_timeout: 60s  # running speedtest needs time to complete
     static_configs:
       - targets: {{ speedtest_targets | to_json }}
+{% endif %}
 {% endif %}
 
 {% if prometheus_fast_targets is defined and prometheus_fast_targets %}
