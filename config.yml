@@ -26,58 +26,45 @@ monitoring_compose_files:
   - docker-compose.yml
 monitoring_speedtest_enable: false
 monitoring_speedtest_interval: 10m
-monitoring_ping_interval: 10m
+monitoring_ping_interval: 3m
 monitoring_ping_hosts:
-  - http://humancapital.its.ac.id/;Human capital HTTP
-  - https://humancapital.its.ac.id/;Human capital HTTPS
+  - http://www.box.com/;Box HTTP
+  - https://www.box.com/;Box HTTPS
   - http://www.docusign.com/;Docusign HTTP
   - https://www.docusign.com/;Docusign HTTPS
-  - http://www.dropbox.com/;Dropbox HTTP
-  - https://www.dropbox.com/;Dropbox HTTPS
-  - http://eperkantoran.its.ac.id/;eperkantoran HTTP
-  - https://eperkantoran.its.ac.id/;eperkantoran HTTPS
   - http://www.facebook.com/;Facebook HTTP
   - https://www.facebook.com/;Facebook HTTPS
-  - http://www.github.com/;Github HTTP
-  - https://www.github.com/;Github HTTPS
   - http://www.google.com/;Google HTTP
   - https://www.google.com/;Google HTTPS
   - http://drive.google.com/;Google Drive HTTP
   - https://drive.google.com/;Google Drive HTTPS
-  - http://www.gmail.com/;Google Mail HTTP
-  - https://www.gmail.com/;Google Mail HTTPS
-  - http://www.hubspot.com/;Hubspot HTTP
-  - https://www.hubspot.com/;Hubspot HTTPS
-  - http://www.linkedin.com/;LinkedIn HTTP
-  - https://www.linkedin.com/;LinkedIn HTTPS
-  - http://login.microsoftonline.com/;Microsoft Online HTTP
-  - https://login.microsoftonline.com/;Microsoft Online HTTPS
-  - http://my.its.ac.id/;my.its.ac.id HTTP
-  - https://my.its.ac.id/;my.its.ac.id HTTPS
-  - http://portal.its.ac.id/;portal.its.ac.id HTTP
-  - https://portal.its.ac.id/;portal.its.ac.id HTTPS
-  - http://its.ac.id/;website ITS HTTP
-  - https://its.ac.id/;website ITS HTTPS
+  - http://jira.com/;Jira HTTP
+  - https://jira.com/;Jira HTTPS
+  - http://portal.its.ac.id/;Portal ITS HTTP
+  - https://portal.its.ac.id/;Portal ITS HTTPS
   - http://www.youtube.com/;YouTube HTTP
   - https://www.youtube.com/;YouTube HTTPS
-  - https://status.zendesk.com/;Zendesk Status
-  - https://support.zendesk.com/hc/en-us;Zendesk Support
+  - http://zoom.us/;Zoom HTTP
+  - https://zoom.us/;Zoom HTTPS
 monitoring_icmp_targets:
-  - 10.24.0.10;10.24.0.10
-  - 10.24.0.13;10.24.0.13
-  - 10.24.0.14;10.24.0.14
-  - 118.97.5.9;118.97.5.9
-  - 103.94.188.3;DNS 103.94.188.3
-  - 202.46.129.3;DNS 202.46.129.3
-  - humancapital.its.ac.id;Human capital
-  - its.ac.id;ping ke its
-  - eperkantoran.its.ac.id;eperkantoran
-  - my.its.ac.id;my.its.ac.id
-  - portal.its.ac.id;portal.its.ac.id
-  - 8.8.8.8;Google DNS
-  - 1.1.1.1;Cloudflare DNS
-  - 9.9.9.9;Quad9 DNS
-  - 208.67.222.222;OpenDNS
+  - ad03.its.ac.id;AD03
+  - ad07.its.ac.id;AD07
+  - www.box.com;Box
+  - 103.94.188.45;ClearPass
+  - 10.0.0.1;CS4 Ruckus
+  - www.docusign.com;Docusign
+  - www.facebook.com;Facebook
+  - www.google.com;Google
+  - drive.google.com;Google Drive
+  - jira.com;Jira
+  - portal.its.ac.id;Portal ITS
+  - 10.24.0.10;WLC10
+  - 10.24.0.11;WLC11
+  - 10.24.0.12;WLC12
+  - 10.24.0.13;WLC13
+  - 10.24.0.14;WLC14
+  - www.youtube.com;YouTube
+  - zoom.us;Zoom
 monitoring_dns_interval: 10m
 monitoring_dns_checks:
   - name: "ITS DNS 103.94.188.3"
@@ -85,17 +72,11 @@ monitoring_dns_checks:
   - name: "ITS DNS 202.46.129.3"
     target: "202.46.129.3"
 monitoring_dhcp_interval: 10m
-monitoring_dhcp_servers:
-  - name: "Branch DHCP"
-    target: "192.168.1.1:67"
+monitoring_dhcp_servers: []
 monitoring_captive_portal_interval: 10m
-monitoring_captive_portal_checks:
-  - name: "Guest Wi-Fi"
-    target: "https://captive.example.com/status"
+monitoring_captive_portal_checks: []
 monitoring_saas_interval: 10m
-monitoring_saas_journeys:
-  - name: "Microsoft 365"
-    target: "https://login.microsoftonline.com/"
+monitoring_saas_journeys: []
 
 monitoring_fast_interval: 10m
 
@@ -227,12 +208,16 @@ vpn_exporter_targets:
     scrape_password: "metrics-password"
 
 # VoIP quality synthetic exporter (Also requires `monitoring_enable`)
-voip_quality_exporter_enable: false
+voip_quality_exporter_enable: true
 voip_quality_exporter_scrape_port: 9899
 voip_quality_exporter_interval: 30
 voip_quality_exporter_timeout: 5
 voip_quality_exporter_profiles:
-  - name: "SIP Provider"
-    registrar: "sip.provider.example.com:5060"
+  - name: "Microsoft Teams"
+    registrar: "worldaz.tr.teams.microsoft.com"
+    jitter_threshold_ms: 30
+    mos_threshold: 4.0
+  - name: "Skype for Business"
+    registrar: "worldaz.tr.teams.microsoft.com"
     jitter_threshold_ms: 30
     mos_threshold: 4.0

@@ -48,7 +48,9 @@ services:
 {% if monitoring_include_exporters %}
     links:
       - ping:ping
+{% if monitoring_speedtest_enable | default(true) %}
       - speedtest:speedtest
+{% endif %}
 {% if radius_exporter_enable %}
       - radius-exporter:radius-exporter
 {% endif %}

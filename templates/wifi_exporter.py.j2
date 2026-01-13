@@ -11,6 +11,19 @@ import sys
 import time
 from prometheus_client import Gauge, start_http_server
 
+MAC_RE = re.compile(r"^[0-9a-f]{2}(?::[0-9a-f]{2}){5}$", re.I)
+
+
+def iface_from_mac(mac):
+    output = subprocess.check_output(["ip", "-o", "link"], text=True)
+    for line in output.splitlines():
+        match = re.search(r"^\d+:\s+([^:]+):.*link/ether\s+([0-9a-f:]{17})", line, re.I)
+        if not match:
+            continue
+        if match.group(2).lower() == mac.lower():
+            return match.group(1)
+    return None
+
 iface = os.getenv("WIFI_IFACE") or (sys.argv[1] if len(sys.argv) > 1 else "{{ wifi_exporter_iface | default('') }}")
 if not iface:
     output = subprocess.check_output(["iw", "dev"], text=True)
@@ -18,6 +31,11 @@ if not iface:
     if not match:
         raise SystemExit("Could not determine Wi-Fi interface; set WIFI_IFACE or pass as argument")
     iface = match.group(1)
+elif MAC_RE.match(iface):
+    resolved_iface = iface_from_mac(iface)
+    if not resolved_iface:
+        raise SystemExit(f"Could not resolve Wi-Fi interface for MAC {iface}")
+    iface = resolved_iface
 
 RSSI = Gauge("wifi_signal_dbm", "Wi-Fi signal strength (dBm)")
 TX_RATE = Gauge("wifi_tx_rate_mbps", "Wi-Fi transmit bitrate (Mbps)")

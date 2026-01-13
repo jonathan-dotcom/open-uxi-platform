@@ -12,6 +12,8 @@ const urlCount = Math.max(1, parseInt(process.env.FAST_EXPORTER_URL_COUNT || '5'
 const concurrency = Math.max(1, parseInt(process.env.FAST_EXPORTER_CONCURRENCY || '3', 10));
 const latencySamples = Math.max(1, parseInt(process.env.FAST_EXPORTER_LATENCY_SAMPLES || '5', 10));
 const runOnEveryScrape = (process.env.FAST_EXPORTER_FORCE_RUN || 'false').toLowerCase() === 'true';
+const ipFamily = parseInt(process.env.FAST_EXPORTER_IP_FAMILY || '4', 10);
+const resolvedIpFamily = ipFamily === 6 ? 6 : 4;
 
 let lastSample = null;
 let lastError = null;
@@ -20,7 +22,7 @@ let runningPromise = null;
 function fetchJson(url) {
   return new Promise((resolve, reject) => {
     https
-      .get(url, { headers: { 'User-Agent': 'fast-exporter/1.0' } }, (res) => {
+      .get(url, { headers: { 'User-Agent': 'fast-exporter/1.0' }, family: resolvedIpFamily }, (res) => {
         if (res.statusCode && res.statusCode >= 400) {
           reject(new Error(`HTTP ${res.statusCode} from ${url}`));
           res.resume();
@@ -58,7 +60,10 @@ async function measureLatency(targetUrl) {
   for (let i = 0; i < latencySamples; i++) {
     const start = performance.now();
     await new Promise((resolve) => {
-      const req = https.get(targetUrl, { headers: { Range: 'bytes=0-1023', 'User-Agent': 'fast-exporter/1.0' } }, (res) => {
+      const req = https.get(
+        targetUrl,
+        { headers: { Range: 'bytes=0-1023', 'User-Agent': 'fast-exporter/1.0' }, family: resolvedIpFamily },
+        (res) => {
         const finalize = () => resolve();
         res.on('data', () => {
           req.destroy();
@@ -66,7 +71,8 @@ async function measureLatency(targetUrl) {
         res.on('end', finalize);
         res.on('error', finalize);
         res.on('close', finalize);
-      });
+        },
+      );
       req.on('error', () => resolve());
     });
     times.push(performance.now() - start);
@@ -85,7 +91,10 @@ async function measureDownload(targets) {
 
   const runDownload = (target) =>
     new Promise((resolve) => {
-      const req = https.get(target.url, { headers: { 'User-Agent': 'fast-exporter/1.0' } }, (res) => {
+      const req = https.get(
+        target.url,
+        { headers: { 'User-Agent': 'fast-exporter/1.0' }, family: resolvedIpFamily },
+        (res) => {
         const finalize = () => resolve();
         res.on('data', (chunk) => {
           totalBytes += chunk.length;
@@ -96,7 +105,8 @@ async function measureDownload(targets) {
         res.on('error', finalize);
         res.on('end', finalize);
         res.on('close', finalize);
-      });
+        },
+      );
       req.on('error', () => resolve());
     });
 

@@ -6,6 +6,174 @@
   ansible.builtin.set_fact:
     sensor_wifi_use_network_manager: "{{ (ansible_facts.services.get('NetworkManager.service', {}).state | default('')) == 'running' }}"
 
+- name: List NetworkManager connection names
+  ansible.builtin.command: nmcli -t -f NAME connection show
+  register: nmcli_connections
+  changed_when: false
+  when: sensor_wifi_use_network_manager
+
+- name: Ensure 802.1x Wi-Fi connection exists
+  ansible.builtin.command:
+    argv: "{{ nmcli_add_base + nmcli_add_ifname }}"
+  vars:
+    nmcli_add_base:
+      - nmcli
+      - connection
+      - add
+      - type
+      - wifi
+      - con-name
+      - "{{ item.conn_name | default(item.ssid) }}"
+      - ssid
+      - "{{ item.ssid }}"
+    nmcli_add_ifname: "{{ ['ifname', (item.iface | default(wifi_exporter_iface | default('wlan0')))] if (item.iface is defined and item.mac_address is not defined) else [] }}"
+  loop: "{{ sensor_wifi_networks }}"
+  when:
+    - sensor_wifi_use_network_manager
+    - item.eap is defined
+    - item.identity is defined
+    - item.password is defined
+    - (item.conn_name | default(item.ssid)) not in (nmcli_connections.stdout_lines | default([]))
+
+- name: Configure 802.1x Wi-Fi connection settings
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - connection
+      - modify
+      - "{{ item.conn_name | default(item.ssid) }}"
+      - connection.autoconnect
+      - "yes"
+      - wifi-sec.key-mgmt
+      - "{{ item.key_mgmt | default('wpa-eap') }}"
+      - 802-1x.eap
+      - "{{ item.eap }}"
+      - 802-1x.identity
+      - "{{ item.identity }}"
+      - 802-1x.password
+      - "{{ item.password }}"
+      - 802-1x.phase2-auth
+      - "{{ item.phase2_auth | default('mschapv2') }}"
+  changed_when: true
+  no_log: true
+  loop: "{{ sensor_wifi_networks }}"
+  when:
+    - sensor_wifi_use_network_manager
+    - item.eap is defined
+    - item.identity is defined
+    - item.password is defined
+
+- name: Pin 802.1x Wi-Fi connection to interface name when defined
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - connection
+      - modify
+      - "{{ item.conn_name | default(item.ssid) }}"
+      - connection.interface-name
+      - "{{ item.iface | default(wifi_exporter_iface | default('wlan0')) }}"
+  when:
+    - sensor_wifi_use_network_manager
+    - item.eap is defined
+    - item.identity is defined
+    - item.password is defined
+    - item.iface is defined
+    - item.mac_address is not defined
+  changed_when: true
+  loop: "{{ sensor_wifi_networks }}"
+
+- name: Pin 802.1x Wi-Fi connection to MAC address when defined
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - connection
+      - modify
+      - "{{ item.conn_name | default(item.ssid) }}"
+      - 802-11-wireless.mac-address
+      - "{{ item.mac_address }}"
+  when:
+    - sensor_wifi_use_network_manager
+    - item.eap is defined
+    - item.identity is defined
+    - item.password is defined
+    - item.mac_address is defined
+  changed_when: true
+  loop: "{{ sensor_wifi_networks }}"
+
+- name: Set 802.1x Wi-Fi autoconnect priority when defined
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - connection
+      - modify
+      - "{{ item.conn_name | default(item.ssid) }}"
+      - connection.autoconnect-priority
+      - "{{ item.priority }}"
+  when:
+    - sensor_wifi_use_network_manager
+    - item.eap is defined
+    - item.identity is defined
+    - item.password is defined
+    - item.priority is defined
+  changed_when: true
+  loop: "{{ sensor_wifi_networks }}"
+
+- name: Set 802.1x Wi-Fi band when defined
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - connection
+      - modify
+      - "{{ item.conn_name | default(item.ssid) }}"
+      - 802-11-wireless.band
+      - "{{ item.wifi_band }}"
+  when:
+    - sensor_wifi_use_network_manager
+    - item.eap is defined
+    - item.identity is defined
+    - item.password is defined
+    - item.wifi_band is defined
+  changed_when: true
+  loop: "{{ sensor_wifi_networks }}"
+
+- name: Set 802.1x Wi-Fi power save when defined
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - connection
+      - modify
+      - "{{ item.conn_name | default(item.ssid) }}"
+      - 802-11-wireless.powersave
+      - "{{ item.wifi_powersave }}"
+  when:
+    - sensor_wifi_use_network_manager
+    - item.eap is defined
+    - item.identity is defined
+    - item.password is defined
+    - item.wifi_powersave is defined
+  changed_when: true
+  loop: "{{ sensor_wifi_networks }}"
+
+- name: Set 802.1x Wi-Fi route metrics when defined
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - connection
+      - modify
+      - "{{ item.conn_name | default(item.ssid) }}"
+      - ipv4.route-metric
+      - "{{ item.route_metric }}"
+      - ipv6.route-metric
+      - "{{ item.route_metric }}"
+  when:
+    - sensor_wifi_use_network_manager
+    - item.eap is defined
+    - item.identity is defined
+    - item.password is defined
+    - item.route_metric is defined
+  changed_when: true
+  loop: "{{ sensor_wifi_networks }}"
+
 - name: Configure open Wi-Fi networks via NetworkManager
   community.general.nmcli:
     conn_name: "{{ item.conn_name | default(item.ssid) }}"
@@ -21,6 +189,7 @@
   loop: "{{ sensor_wifi_networks }}"
   when:
     - sensor_wifi_use_network_manager
+    - item.eap is not defined
     - item.psk is not defined
 
 - name: Configure secured Wi-Fi networks via NetworkManager
@@ -39,7 +208,91 @@
   loop: "{{ sensor_wifi_networks }}"
   when:
     - sensor_wifi_use_network_manager
+    - item.eap is not defined
     - item.psk is defined
+
+- name: List active NetworkManager connections
+  ansible.builtin.command: nmcli -t -f NAME,TYPE,STATE connection show --active
+  register: nmcli_active_connections
+  changed_when: false
+  when:
+    - sensor_wifi_use_network_manager
+    - (sensor_wifi_disable_connections | default([])) | length > 0
+      or (sensor_wifi_disable_other_connections | default(false))
+
+- name: Determine if primary Wi-Fi connection is active
+  ansible.builtin.set_fact:
+    sensor_wifi_primary_active: >-
+      {{ (nmcli_active_connections.stdout_lines | default([]))
+         | select('match', '^' ~ (sensor_wifi_primary_connection | default('')) ~ ':(wifi|802-11-wireless):')
+         | list
+         | length > 0 }}
+  when:
+    - sensor_wifi_use_network_manager
+    - (sensor_wifi_disable_connections | default([])) | length > 0
+      or (sensor_wifi_disable_other_connections | default(false))
+
+- name: List all NetworkManager connections
+  ansible.builtin.command: nmcli -t -f NAME,TYPE connection show
+  register: nmcli_all_connections
+  changed_when: false
+  when:
+    - sensor_wifi_use_network_manager
+    - sensor_wifi_disable_other_connections | default(false)
+
+- name: Compute Wi-Fi connections to disable when single interface mode is enabled
+  ansible.builtin.set_fact:
+    sensor_wifi_auto_disable_connections: >-
+      {{ (nmcli_all_connections.stdout_lines | default([]))
+         | select('match', '^[^:]+:(wifi|802-11-wireless)$')
+         | map('regex_replace', ':(wifi|802-11-wireless)$', '')
+         | reject('equalto', sensor_wifi_primary_connection | default(''))
+         | list }}
+  when:
+    - sensor_wifi_use_network_manager
+    - sensor_wifi_disable_other_connections | default(false)
+
+- name: Combine Wi-Fi connections to disable
+  ansible.builtin.set_fact:
+    sensor_wifi_disable_connections_resolved: >-
+      {{ ((sensor_wifi_disable_connections | default([]))
+          + (sensor_wifi_auto_disable_connections | default([])))
+         | unique | list }}
+  when:
+    - sensor_wifi_use_network_manager
+    - (sensor_wifi_disable_connections | default([])) | length > 0
+      or (sensor_wifi_disable_other_connections | default(false))
+
+- name: Disable unwanted Wi-Fi auto-connect
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - connection
+      - modify
+      - "{{ item }}"
+      - connection.autoconnect
+      - "no"
+  loop: "{{ sensor_wifi_disable_connections_resolved | default([]) }}"
+  when:
+    - sensor_wifi_use_network_manager
+    - (sensor_wifi_disable_connections_resolved | default([])) | length > 0
+    - sensor_wifi_primary_active | default(false)
+  changed_when: true
+
+- name: Disconnect unwanted Wi-Fi connections
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - connection
+      - down
+      - "{{ item }}"
+  loop: "{{ sensor_wifi_disable_connections_resolved | default([]) }}"
+  when:
+    - sensor_wifi_use_network_manager
+    - (sensor_wifi_disable_connections_resolved | default([])) | length > 0
+    - sensor_wifi_primary_active | default(false)
+  changed_when: true
+  failed_when: false
 
 - name: Ensure wpa_supplicant configuration file exists
   ansible.builtin.file:

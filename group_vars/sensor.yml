@@ -7,7 +7,7 @@ pihole_enable: false
 wifi_exporter_port: 9105
 wifi_exporter_target: "{{ (ansible_host | default(inventory_hostname)) ~ ':' ~ wifi_exporter_port }}"
 wifi_exporter_enable: true
-wifi_exporter_iface: wlan0
+wifi_exporter_iface: "f0:09:0d:36:ed:2a"
 speedtest_exporter_target: "{{ (ansible_host | default(inventory_hostname)) ~ ':9798' }}"
 
 docker_install_compose_plugin: true
@@ -22,6 +22,19 @@ pipeline_sensor_control_url_host: "ws://100.119.89.99:8765/control"
 pipeline_sensor_ingest_url_host: "http://100.119.89.99:8081/v1/ingest/chunk"
 
 sensor_wifi_networks:
-  - ssid: "myITS-FreeWiFi"
-    scan_ssid: true
-    priority: 10
+  - ssid: "myITS-WiFi"
+    conn_name: "myITS-WiFi 1"
+    priority: 20
+    route_metric: 100
+    mac_address: "f0:09:0d:36:ed:2a"
+    wifi_band: a
+    wifi_powersave: 2
+    key_mgmt: wpa-eap
+    eap: peap
+    identity: "5027221062@student.its.ac.id"
+    password: "TigaJuli2000Empat"
+    phase2_auth: mschapv2
+sensor_wifi_primary_connection: "myITS-WiFi 1"
+sensor_wifi_disable_other_connections: true
+sensor_wifi_disable_connections:
+  - "myITS-WiFi"

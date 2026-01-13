@@ -10,6 +10,7 @@
   community.docker.docker_compose_v2:
     project_src: "{{ config_dir }}/internet-monitoring/"
     build: never
+    files: "{{ monitoring_compose_files_resolved | default(['docker-compose.yml']) | to_json | from_json }}"
     state: restarted
   become: false
 
