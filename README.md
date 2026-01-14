@@ -1,26 +1,176 @@
-# Open UXI Platform: Split Sensor + Cloud Deployment
+# Open UXI Platform - Tutorial Setup Lengkap (Sensor + Cloud)
 
-This repository packages the Aruba UXI-inspired internet monitoring stack so you can run
-exporters on a Raspberry Pi sensor while Prometheus and Grafana live on a central Ubuntu
-server. Follow the steps below to bring both pieces online with Ansible. If you
-need a full production runbook (including prerequisites, validation, and
-operational checks) see [`docs/deployment.md`](docs/deployment.md).
+Repositori ini menyiapkan stack monitoring internet bergaya Aruba UXI: sensor (Raspberry Pi)
+menjalankan exporter, dan server cloud (Ubuntu) menjalankan Prometheus + Grafana. Deploy utama
+menggunakan Ansible agar instalasi konsisten dan mudah diulang. Panduan ini ditulis untuk
+pemula yang baru setup dari nol sekaligus developer yang ingin mengembangkan lebih lanjut.
 
-## 1. Prerequisites
+## Ringkasan
 
-- Control machine with Ansible 2.13+ and `community.docker` collection
-  (`ansible-galaxy collection install -r requirements.yml`). You can run from the Ubuntu
-  server itself or any host that can SSH into both targets.
-- Docker and Docker Compose v2 installed on the Ubuntu server and the Raspberry Pi.
-- SSH access:
-  - Ubuntu server (cloud node) user with sudo (default inventory assumes `jojo`).
-  - Raspberry Pi user with sudo (example uses `pi`).
-- (Optional but recommended) Tailscale or another overlay network so the cloud Prometheus
-  can scrape the Pi exporters securely.
+- Sensor mengukur ping, DNS, DHCP, captive portal, SaaS login, speedtest, Wi-Fi, dan metrik OS.
+- Cloud mengumpulkan metrik dengan Prometheus dan menampilkan dashboard Grafana.
+- Opsional: pipeline sensor -> cloud untuk pengiriman data yang tahan gangguan.
 
-## 2. Configure Inventory
+## Arsitektur Singkat
 
-Edit `inventory.ini` so it references your hosts:
+```
+Internet/Wi-Fi
+      |
+      v
+[Sensor - Raspberry Pi]
+  - blackbox exporter (ping/dns/http)
+  - speedtest atau fasttest exporter (opsional)
+  - node exporter
+  - wifi exporter (opsional)
+  - prom agent remote write (opsional)
+      |
+      v
+[Cloud - Ubuntu Server]
+  - Prometheus
+  - Grafana
+  - pipeline server (opsional)
+```
+
+## Perangkat dan Kebutuhan
+
+### 1) Sensor (Raspberry Pi)
+- Raspberry Pi 3/4 (RAM 2 GB minimum, 4 GB direkomendasikan)
+- microSD 16 GB minimum (32 GB direkomendasikan)
+- Koneksi Wi-Fi atau Ethernet
+- Adaptor daya stabil
+- OS: Raspberry Pi OS 64-bit atau Ubuntu Server 22.04 (ARM64)
+
+### 2) Cloud (Server Ubuntu)
+- Ubuntu Server 20.04 atau 22.04
+- CPU 2 core, RAM 4 GB minimum
+- Storage 20 GB minimum (lebih besar jika retensi Prometheus lama)
+- Akses internet untuk download image Docker
+
+### 3) Mesin Kontrol (Ansible)
+- Laptop/PC atau gunakan server cloud
+- Python 3.9+ dan Ansible 2.13+
+- SSH ke cloud dan sensor
+
+### 4) Jaringan
+- Jika memakai scrape langsung, cloud harus bisa mengakses port sensor yang aktif, contoh:
+  9115 (blackbox), 9100 (node), 9105 (wifi), 9798 (speedtest jika dipakai), 9801 (fasttest jika dipakai)
+- Jika memakai remote write, sensor hanya perlu akses ke cloud pada 9090 (Prometheus receiver)
+- Jika beda lokasi, gunakan VPN atau Tailscale
+
+## Checklist Sebelum Mulai
+
+- Anda sudah menyiapkan IP/hostname untuk cloud dan sensor
+- SSH ke kedua host berjalan tanpa prompt password berulang
+- Kedua host bisa akses internet
+- Anda paham akan memakai LAN langsung atau VPN/Tailscale
+
+## Tutorial Setup dari Nol
+
+### 1) Tentukan Topologi dan Alamat IP
+
+Contoh tabel rencana:
+
+| Peran  | Hostname | IP            | User SSH |
+| ------ | -------- | ------------- | -------- |
+| Cloud  | uxi-cloud | 203.0.113.10 | ubuntu   |
+| Sensor | uxi-pi    | 192.168.1.50 | pi       |
+
+Jika memakai Tailscale, gunakan IP 100.x.y.z pada `ansible_host`.
+
+### 2) Install OS dan Update Paket
+
+**Cloud (Ubuntu Server):**
+- Install Ubuntu Server 20.04/22.04
+- Buat user dengan sudo
+- Update paket:
+
+```bash
+sudo apt update
+sudo apt -y upgrade
+```
+
+**Sensor (Raspberry Pi):**
+- Gunakan Raspberry Pi Imager
+- Pilih Raspberry Pi OS Lite 64-bit atau Ubuntu Server 22.04
+- Aktifkan SSH saat flashing (lebih mudah untuk pemula)
+- Update paket setelah boot:
+
+```bash
+sudo apt update
+sudo apt -y upgrade
+```
+
+### 3) Siapkan Akses SSH dari Mesin Kontrol
+
+Di mesin kontrol:
+
+```bash
+ssh-keygen -t ed25519 -C "open-uxi"
+ssh-copy-id <user>@<cloud-ip>
+ssh-copy-id <user>@<sensor-ip>
+```
+
+Coba login:
+
+```bash
+ssh <user>@<cloud-ip>
+ssh <user>@<sensor-ip>
+```
+
+### 4) Pastikan Koneksi Jaringan Antar Host
+
+- Jika memakai scrape langsung, pastikan cloud dapat mengakses port sensor yang aktif
+  (contoh: 9115, 9100, 9105, 9798, 9801)
+- Jika memakai remote write, pastikan sensor bisa akses `http://<cloud-ip>:9090/api/v1/write`
+- Jika berada di jaringan berbeda, pasang VPN/Tailscale pada keduanya
+- Jika memakai firewall, pastikan port di atas diizinkan
+
+### 5) Install Docker dan Docker Compose
+
+**Opsi A (disarankan untuk pemula):** Biarkan Ansible meng-install Docker otomatis.
+Playbook akan mengunduh `get.docker.com` ketika Docker belum terpasang.
+
+**Opsi B (manual):** Jalankan di cloud dan sensor:
+
+```bash
+sudo apt update
+sudo apt install -y docker.io docker-compose-plugin
+sudo systemctl enable --now docker
+sudo usermod -aG docker $USER
+```
+
+Logout/login ulang agar grup `docker` aktif.
+
+Cek versi:
+
+```bash
+docker --version
+docker compose version
+```
+
+### 6) Siapkan Mesin Kontrol dan Ansible
+
+Di mesin kontrol (bisa di cloud):
+
+```bash
+sudo apt install -y git python3 python3-venv python3-pip
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install ansible==2.13.*
+```
+
+### 7) Clone Repo dan Install Dependency Ansible
+
+```bash
+git clone <repo-url>
+cd open-uxi-platform
+ansible-galaxy collection install -r requirements.yml
+```
+
+### 8) Konfigurasi Inventory
+
+Buat atau edit `inventory.ini`. Contoh:
 
 ```ini
 [internet_pi:children]
@@ -28,221 +178,247 @@ cloud
 sensor
 
 [cloud]
-cloud-hostname-or-ip ansible_user=jojo
+uxi-cloud ansible_host=203.0.113.10 ansible_user=ubuntu
 
 [sensor]
-pi ansible_host=100.123.214.125 ansible_user=pi
+uxi-pi ansible_host=192.168.1.50 ansible_user=pi
 ```
 
-Replace the hostnames/IP addresses and users with values that work in your environment.
+Jika butuh kunci SSH khusus:
 
-## 3. Customize Variables
+```
+ansible_ssh_private_key_file=~/.ssh/id_ed25519
+```
 
-Group-specific settings live under `group_vars/`:
+### 9) Konfigurasi Variabel (config.yml dan group_vars)
 
-- `group_vars/cloud.yml` keeps Prometheus and Grafana enabled and disables on-box exporters.
-  Populate `prometheus_node_exporter_targets` if you want Prometheus to scrape additional
-  node exporters, and override `prometheus_wifi_targets` if the auto-detected sensor address
-  list (built from the `wifi_exporter_target` variable on each sensor host) needs adjustment.
-- `group_vars/sensor.yml` runs only the exporter compose file and disables Prometheus/Grafana
-  and Pi-hole on the Pi. It also enables the Wi-Fi systemd exporter (`wifi_exporter_enable`),
-  which auto-detects the radio interface and serves metrics on `wifi_exporter_port` (defaults
-  to 9105). Override `wifi_exporter_iface` if your wireless interface is not auto-detected;
-  the cloud play uses `wifi_exporter_target` and `speedtest_exporter_target` to populate the
-  Wi-Fi and speedtest scrape jobs automatically.
-
-Global defaults remain in `config.yml`; adjust ping hosts, DNS checks, or exporter settings as
-needed. Optional exporters (RADIUS, VPN, VoIP) are still controlled through the boolean flags
-in `config.yml`.
-
-## 4. Run the Playbook
-
-Install the required collection once:
+**A) `config.yml` (global defaults)**
+- File ini di-load setelah `example.config.yml` sehingga nilai di `config.yml` akan override.
+- Untuk setup baru, aman mulai dari `example.config.yml`:
 
 ```bash
-ansible-galaxy collection install -r requirements.yml
+cp example.config.yml config.yml
 ```
 
-Then provision each tier.
+Jika repo sudah berisi `config.yml` lama, pertimbangkan membuat file baru seperti
+`config.local.yml` dan jalankan playbook dengan `-e @config.local.yml`.
 
-### Cloud Node (Ubuntu server)
+Minimal yang perlu diubah:
+- `monitoring_grafana_admin_password` -> ganti password admin Grafana
+- `monitoring_ping_hosts` -> daftar URL yang ingin dipantau
+- `monitoring_icmp_targets` -> daftar host untuk ping
+- `monitoring_speedtest_enable` -> set true jika ingin speedtest
+- `config_dir` -> lokasi deploy (default `~`, sehingga path `~/internet-monitoring`)
+
+Catatan speedtest: exporter speedtest tidak ada di compose sensor secara default. Jika
+ingin speedtest dari sensor, tambahkan servicenya ke compose sensor atau jalankan
+speedtest di cloud dengan `monitoring_include_exporters: true` pada host cloud.
+
+**B) `group_vars/cloud.yml` (khusus cloud)**
+- `monitoring_include_prometheus: true`
+- `monitoring_include_grafana: true`
+- `monitoring_include_exporters: false`
+- `prometheus_node_exporter_targets_cloud`: daftar target node exporter
+- `prometheus_wifi_targets`: daftar target wifi exporter
+- `prometheus_speedtest_targets`: daftar target speedtest exporter
+- `pipeline_server_enable_host`: aktifkan pipeline server jika dibutuhkan
+
+Catatan: jika `prometheus_speedtest_targets` tidak diisi, Prometheus akan mengambil dari
+`speedtest_exporter_target` milik host sensor secara otomatis.
+
+**C) `group_vars/sensor.yml` (khusus sensor)**
+- `monitoring_include_exporters: true`
+- `wifi_exporter_enable: true` jika ingin metrik Wi-Fi
+- `wifi_exporter_iface`: isi nama interface Wi-Fi (cek dengan `ip link` atau `iw dev`)
+- `sensor_wifi_networks`: opsional, jika ingin Ansible mengatur Wi-Fi
+- `pipeline_sensor_enable_host`: aktifkan pipeline agent jika dibutuhkan
+- `prometheus_remote_write_enable_sensor`: true jika memakai remote write ke cloud
+- `prometheus_remote_write_url_sensor`: URL receiver Prometheus di cloud
+
+Jika sensor sudah terhubung ke Wi-Fi secara manual, Anda bisa mengosongkan
+`sensor_wifi_networks` agar Ansible tidak mengubah konfigurasi Wi-Fi.
+
+**D) Secrets**
+Simpan password, token, atau TLS dalam Ansible Vault jika akan dipakai di produksi.
+
+**E) Pilihan metode pengumpulan data**
+- Scrape langsung: Prometheus di cloud menarik data dari exporter di sensor.
+  Pastikan port sensor terbuka dan target diisi di `group_vars/cloud.yml`.
+- Remote write: prom agent di sensor mengirim data ke cloud.
+  Aktifkan `prometheus_remote_write_enable_sensor: true`,
+  set `prometheus_remote_write_url_sensor`, dan aktifkan
+  `prometheus_remote_write_receiver_enable_cloud: true` di cloud.
+
+### 10) Uji Koneksi Ansible
+
+```bash
+ansible -i inventory.ini all -m ping
+```
+
+Jika ada error SSH, perbaiki `ansible_user`, `ansible_host`, atau kunci SSH.
+
+### 11) Jalankan Playbook
+
+**Cloud dahulu:**
 
 ```bash
 ansible-playbook -i inventory.ini --limit cloud main.yml
 ```
 
-This copies the monitoring stack to `~/internet-monitoring/`, renders the cloud-friendly
-`docker-compose.yml`, and launches Prometheus + Grafana.
-
-### Sensor Node (Raspberry Pi)
+**Sensor:**
 
 ```bash
 ansible-playbook -i inventory.ini --limit sensor main.yml
 ```
 
-The playbook syncs the exporter configs, writes `docker-compose.sensor.yml` (and the optional
-override when needed), and starts the exporters with Docker Compose.
-
-### One-shot Run for Both Nodes
-
-After credentials and host keys are in place you can configure both tiers in a single pass:
+**Sekaligus:**
 
 ```bash
 ansible-playbook -i inventory.ini main.yml
 ```
 
-## 5. Post-Deployment Checks
+Playbook bisa dijalankan ulang kapan saja untuk update konfigurasi.
+Jika sudo meminta password, tambahkan `--ask-become-pass`.
 
-1. On the Pi, confirm exporters respond: `curl http://localhost:9115/metrics`,
-   `curl http://localhost:9798/metrics`, `curl http://localhost:9100/metrics`.
-2. On the server, update `prometheus/prometheus.yml` (rendered by the playbook) so the scrape
-   targets use the Pi's overlay IP, then run `docker compose restart prometheus` if you change
-   anything manually.
-3. Browse Grafana via Nginx/HTTPS (or Tailscale) using the credentials configured in
-   `grafana/config.monitoring` and rotate the admin password immediately.
+### 12) Verifikasi dan Akses Dashboard
 
-## Manual Docker Workflow (Alternative)
-
-If you prefer to skip Ansible:
-
-- **Sensor (Pi)** – pull this repo, run `docker compose -f internet-monitoring/docker-compose.sensor.yml up -d`
-  (extend with `-f docker-compose.sensor.optional.yml` for the Aruba-style exporters).
-- **Cloud (Ubuntu)** – copy `internet-monitoring/` to `/opt/internet-monitoring-cloud/`, adjust
-  `prometheus/prometheus.yml` to scrape the Pi, and run `docker compose up -d` inside that
-  directory. Use Nginx + Certbot to expose Grafana securely.
-
-The Ansible playbook automates those manual steps and keeps both nodes reproducible, so lean on
-it once you are ready to maintain the deployment through code.
-
-## 6. Sensor Pipeline Quickstart
-
-The split stack now ships a persistent sensor→cloud delivery pipeline alongside the classic
-Prometheus/Grafana deployment. Follow these steps after the prerequisite Ansible run.
-
-### 6.1 Configure Pipeline Secrets
-
-- `group_vars/sensor.yml` – set a unique `pipeline_sensor_token_host` and (optionally) override
-  the control/ingest URLs if your Tailscale IPs differ.
-- `group_vars/cloud.yml` – enable the pipeline server and list the authorized sensors under
-  `pipeline_server_auth_sensors_host`. Each entry requires a matching token.
-- Optional: populate any of the `pipeline_*_tls_*_content` variables with PEM strings (CA, cert,
-  key) to enable TLS/mTLS on the control, ingest, or snapshot endpoints.
-
-### 6.2 Deploy Both Nodes
+**Cek container di cloud:**
 
 ```bash
-ansible-playbook -i inventory.ini --limit cloud main.yml
-ansible-playbook -i inventory.ini --limit sensor main.yml
+ssh <user>@<cloud-ip> "cd ~/internet-monitoring && docker compose ps"
 ```
 
-The playbooks render:
-
-- Cloud – `internet-monitoring/pipeline/config/server.yml`, build
-  `internet-monitoring-pipeline-server-1`, persist state under `/var/lib/pipeline/server.db`,
-  and expose ports `8765` (WebSocket control), `8081` (chunk ingest), `8766` (snapshot stream).
-- Sensor – `internet-monitoring/pipeline/config/sensor.yml`, build
-  `internet-monitoring-pipeline-agent-1`, store the durable queue in `/var/lib/pipeline/queue.db`.
-- Grafana automatically provisions a curated **Pipeline Overview** dashboard
-  (`internet-monitoring/grafana/provisioning/dashboards/pipeline-overview.json`) summarizing reachability,
-  speedtest results, Wi-Fi signal, and recent check failures per sensor.
-
-### 6.3 Verify Connectivity
-
-1. **Control channel** – on the cloud host run
-   `docker logs internet-monitoring-pipeline-server-1 --since 30s` and confirm entries such as  
-   `sensor dti connected to control channel`.
-2. **Ingest** – from the Pi execute:
-   ```bash
-   docker logs internet-monitoring-pipeline-agent-1 --since 30s
-   ```
-   After a measurement you should see `Sent chunk sequence …` with no errors.
-3. **Snapshot stream** – from any Tailnet machine:
-   ```bash
-   wscat -H "Authorization: Bearer <stream-token>" ws://<cloud-ip>:8766
-   ```
-   A `snapshot_batch` payload is returned immediately, followed by `snapshot` updates as new data arrives.
-
-### 6.4 Manual “Real User” Test
-
-To exercise the full pipeline without waiting for exporters:
+**Cek exporter di sensor:**
 
 ```bash
-ssh dti@<sensor-ip>
-docker exec -i internet-monitoring-pipeline-agent-1 python - <<'PY'
-import asyncio, time, yaml
-from internet_monitoring.pipeline.common.chunking import chunk_payload, random_event_id
-from internet_monitoring.pipeline.sensor.queue import DurableQueue
-from internet_monitoring.pipeline.sensor.dispatch import ChunkDispatcher
-from internet_monitoring.pipeline.sensor.transports import HttpChunkSender
-from internet_monitoring.pipeline.common.messages import ChunkRequest
-
-cfg = yaml.safe_load(open("/config/sensor.yml"))
-queue = DurableQueue("/var/lib/pipeline/queue.db")
-dispatcher = ChunkDispatcher(cfg["sensor_id"], queue)
-
-payload = f"user test run at {time.time()}".encode()
-chunks = chunk_payload(payload, random_event_id())
-queue.enqueue(chunks)
-
-request = ChunkRequest(
-    since_sequence=dispatcher.last_ack_sequence,
-    max_chunks=10,
-    max_bytes=512*1024,
-    window_id="user-test",
-    max_in_flight=10,
-)
-
-headers = {"Authorization": f"Bearer {cfg['token']}", "Content-Type": "application/json"}
-sender = HttpChunkSender(cfg["ingest"]["url"], timeout=float(cfg["ingest"].get("timeout", 10)), headers=headers)
-
-async def send_all():
-    for chunk in dispatcher.build_chunks(request):
-        await sender.send_chunk(chunk)
-        print("sent chunk", chunk.sequence)
-
-asyncio.run(send_all())
-queue.close()
-PY
+ssh <user>@<sensor-ip> "curl -f http://localhost:9115/metrics | head"
+ssh <user>@<sensor-ip> "curl -f http://localhost:9100/metrics | head"
+ssh <user>@<sensor-ip> "curl -f http://localhost:9105/metrics | head"  # jika wifi exporter aktif
+ssh <user>@<sensor-ip> "curl -f http://localhost:9798/metrics | head"  # jika speedtest aktif
+ssh <user>@<sensor-ip> "curl -f http://localhost:9801/metrics | head"  # jika fasttest aktif
 ```
 
-On the cloud server you should immediately see the ingest event logged and a new row in
-`/var/lib/pipeline/server.db`. Dashboards (Grafana / snapshot stream) show the updated payload
-instantly.
+**Akses UI:**
+- Grafana: `http://<cloud-ip>:3030`
+- Prometheus: `http://<cloud-ip>:9090`
+- Target status: `http://<cloud-ip>:9090/targets`
 
-### 6.5 Observability & Operations
+Login Grafana:
+- user: `admin`
+- password: sesuai `monitoring_grafana_admin_password`
 
-- Pipeline metrics/snapshot docs live in `docs/pipeline.md`.
-- Tail logs with `docker logs -f internet-monitoring-pipeline-{agent,server}-1`.
-- Run the unit suite locally with `pytest internet-monitoring/pipeline/tests`.
+## Opsional: Aktifkan Pipeline Sensor -> Cloud
 
-With these steps you can deploy, verify, and operate the full UXI-style monitoring platform plus
-the resilient sensor delivery pipeline directly from this repository.
+Pipeline berguna jika Anda ingin pengiriman data sensor yang tahan gangguan.
 
-## 7. Operations Cheat Sheet
+1) Atur token dan URL di `group_vars`:
+- `group_vars/cloud.yml`:
+  - `pipeline_server_enable_host: true`
+  - `pipeline_server_auth_sensors_host`: daftar sensor dan token
+- `group_vars/sensor.yml`:
+  - `pipeline_sensor_enable_host: true`
+  - `pipeline_sensor_token_host`: token yang sama dengan cloud
+  - `pipeline_sensor_control_url_host` dan `pipeline_sensor_ingest_url_host`
 
-- **Logs**
-  - Cloud: `docker logs -f internet-monitoring-pipeline-server-1`
-  - Sensor: `docker logs -f internet-monitoring-pipeline-agent-1`
-- **Database inspection**
-  - Server events/chunks: `docker exec -it internet-monitoring-pipeline-server-1 sqlite3 /var/lib/pipeline/server.db`
-  - Sensor queue: `docker exec -it internet-monitoring-pipeline-agent-1 sqlite3 /var/lib/pipeline/queue.db`
-- **Snapshot stream test**
+2) Jalankan playbook ulang untuk cloud dan sensor.
+
+3) Cek log:
+
+```bash
+docker logs internet-monitoring-pipeline-server-1 --since 5m
+docker logs internet-monitoring-pipeline-agent-1 --since 5m
+```
+
+Port pipeline default:
+- Control: 8765
+- Ingest: 8081
+- Stream: 8766
+
+Dokumentasi lengkap pipeline ada di `docs/pipeline.md`.
+
+## Operasional Harian (Ops)
+
+- Update konfigurasi: edit `config.yml` atau `group_vars/*` lalu jalankan playbook ulang.
+- Lihat status container (cloud):
   ```bash
-  wscat -H "Authorization: Bearer <stream-token>" ws://<cloud-ip>:8766
+  docker compose -f ~/internet-monitoring/docker-compose.yml ps
   ```
-- **Rotate credentials**
-  - Update `pipeline_sensor_token_host` / `pipeline_server_auth_sensors_host` in group vars.
-  - Optionally update `pipeline_server_stream_token_host`.
-  - Rerun the playbooks; old containers pick up new tokens on restart.
-- **Run automated checks**
+- Lihat status container (sensor):
   ```bash
-  pytest internet-monitoring/pipeline/tests
+  docker compose -f ~/internet-monitoring/docker-compose.sensor.yml ps
   ```
-- **Reset queue or store (lab only)**
+- Lihat log:
   ```bash
-  docker exec -it internet-monitoring-pipeline-agent-1 sqlite3 /var/lib/pipeline/queue.db 'DELETE FROM chunks; VACUUM;'
-  docker exec -it internet-monitoring-pipeline-server-1 sqlite3 /var/lib/pipeline/server.db 'DELETE FROM chunks; DELETE FROM events; VACUUM;'
+  docker logs -f <container>
   ```
 
-For deeper architectural notes, payload format, metrics, and TLS guidance read `docs/pipeline.md`.
+Dokumentasi deployment lanjutan ada di `docs/deployment.md`.
 
+## Manual Docker Workflow (Alternatif)
+
+Jika tidak ingin Ansible:
+
+- **Sensor**
+  ```bash
+  cd internet-monitoring
+  docker compose -f docker-compose.sensor.yml up -d
+  ```
+
+- **Cloud**
+  ```bash
+  cd internet-monitoring
+  docker compose up -d
+  ```
+
+Gunakan cara ini hanya untuk lab, Ansible lebih stabil untuk produksi.
+
+## Troubleshooting Cepat
+
+- `UNREACHABLE` saat Ansible:
+  - cek `inventory.ini`, user, dan SSH key
+  - coba `ssh <user>@<host>` manual
+- `docker compose: command not found`:
+  - pasang `docker-compose-plugin` atau set `docker_install_compose_plugin: true`
+- Grafana kosong:
+  - cek `http://<cloud-ip>:9090/targets` pastikan semua `UP`
+  - ubah time range di Grafana ke 1h terakhir
+- Wi-Fi exporter tidak muncul:
+  - pastikan `wifi_exporter_enable: true`
+  - set `wifi_exporter_iface` sesuai interface yang benar
+
+## Panduan Developer
+
+### Struktur Direktori Penting
+
+- `main.yml` - playbook utama
+- `tasks/` - langkah instalasi Ansible
+- `templates/` - template Jinja2 untuk compose dan config
+- `group_vars/` - variabel per grup (cloud dan sensor)
+- `internet-monitoring/` - stack Docker dan dashboard Grafana
+- `internet_monitoring/` - kode pipeline Python
+- `docs/` - dokumentasi lanjutan
+
+### Menambah Exporter Baru
+
+1) Tambahkan definisi service di `templates/docker-compose.yml.j2` atau compose sensor.
+2) Tambahkan konfigurasi scrape di `templates/prometheus.yml.j2`.
+3) Buat task render config di `tasks/` jika perlu.
+4) Tambahkan variabel toggle di `config.yml` atau `group_vars/*`.
+5) (Opsional) Tambah dashboard Grafana di `internet-monitoring/grafana/`.
+
+### Testing Pipeline
+
+```bash
+pytest internet-monitoring/pipeline/tests
+```
+
+## Keamanan (Disarankan)
+
+- Ganti password Grafana sebelum exposure ke publik.
+- Simpan token dan password di Ansible Vault.
+- Jika akses dari internet, pasang reverse proxy + TLS.
+
+---
+
+Jika Anda baru memulai, fokus ke bagian "Tutorial Setup dari Nol". Setelah sistem berjalan,
+lanjutkan ke bagian Operasional atau Panduan Developer sesuai kebutuhan.
