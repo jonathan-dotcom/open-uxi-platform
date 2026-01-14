@@ -7,7 +7,7 @@ pemula yang baru setup dari nol sekaligus developer yang ingin mengembangkan leb
 
 ## Ringkasan
 
-- Sensor mengukur ping, DNS, DHCP, captive portal, SaaS login, speedtest, Wi-Fi, dan metrik OS.
+- Sensor mengukur ping, DNS, DHCP, captive portal, SaaS login, fasttest (default), speedtest (opsional), Wi-Fi, dan metrik OS.
 - Cloud mengumpulkan metrik dengan Prometheus dan menampilkan dashboard Grafana.
 - Opsional: pipeline sensor -> cloud untuk pengiriman data yang tahan gangguan.
 
@@ -19,7 +19,7 @@ Internet/Wi-Fi
       v
 [Sensor - Raspberry Pi]
   - blackbox exporter (ping/dns/http)
-  - speedtest atau fasttest exporter (opsional)
+  - fasttest exporter (default) dan speedtest exporter (opsional)
   - node exporter
   - wifi exporter (opsional)
   - prom agent remote write (opsional)
@@ -52,9 +52,9 @@ Internet/Wi-Fi
 - SSH ke cloud dan sensor
 
 ### 4) Jaringan
+- Mode rekomendasi (paling mudah): remote write, sensor hanya perlu akses ke cloud pada 9090 (Prometheus receiver)
 - Jika memakai scrape langsung, cloud harus bisa mengakses port sensor yang aktif, contoh:
-  9115 (blackbox), 9100 (node), 9105 (wifi), 9798 (speedtest jika dipakai), 9801 (fasttest jika dipakai)
-- Jika memakai remote write, sensor hanya perlu akses ke cloud pada 9090 (Prometheus receiver)
+  9115 (blackbox), 9100 (node), 9105 (wifi), 9798 (speedtest jika dipakai), 9801 (fasttest)
 - Jika beda lokasi, gunakan VPN atau Tailscale
 
 ## Checklist Sebelum Mulai
@@ -119,9 +119,9 @@ ssh <user>@<sensor-ip>
 
 ### 4) Pastikan Koneksi Jaringan Antar Host
 
+- Mode rekomendasi (remote write): pastikan sensor bisa akses `http://<cloud-ip>:9090/api/v1/write`
 - Jika memakai scrape langsung, pastikan cloud dapat mengakses port sensor yang aktif
   (contoh: 9115, 9100, 9105, 9798, 9801)
-- Jika memakai remote write, pastikan sensor bisa akses `http://<cloud-ip>:9090/api/v1/write`
 - Jika berada di jaringan berbeda, pasang VPN/Tailscale pada keduanya
 - Jika memakai firewall, pastikan port di atas diizinkan
 
@@ -212,12 +212,14 @@ Minimal yang perlu diubah:
 
 Catatan speedtest: exporter speedtest tidak ada di compose sensor secara default. Jika
 ingin speedtest dari sensor, tambahkan servicenya ke compose sensor atau jalankan
-speedtest di cloud dengan `monitoring_include_exporters: true` pada host cloud.
+speedtest di cloud dengan `monitoring_include_exporters: true` pada host cloud. Jika
+tidak menambah service speedtest, set `monitoring_speedtest_enable: false`.
 
 **B) `group_vars/cloud.yml` (khusus cloud)**
 - `monitoring_include_prometheus: true`
 - `monitoring_include_grafana: true`
 - `monitoring_include_exporters: false`
+- `prometheus_remote_write_receiver_enable_cloud`: true jika memakai remote write
 - `prometheus_node_exporter_targets_cloud`: daftar target node exporter
 - `prometheus_wifi_targets`: daftar target wifi exporter
 - `prometheus_speedtest_targets`: daftar target speedtest exporter
@@ -238,16 +240,15 @@ Catatan: jika `prometheus_speedtest_targets` tidak diisi, Prometheus akan mengam
 Jika sensor sudah terhubung ke Wi-Fi secara manual, Anda bisa mengosongkan
 `sensor_wifi_networks` agar Ansible tidak mengubah konfigurasi Wi-Fi.
 
-**D) Secrets**
-Simpan password, token, atau TLS dalam Ansible Vault jika akan dipakai di produksi.
+**D) Mode rekomendasi (paling mudah): remote write**
+1. Di cloud, set `prometheus_remote_write_receiver_enable_cloud: true`.
+2. Di sensor, set `prometheus_remote_write_enable_sensor: true`.
+3. Di sensor, set `prometheus_remote_write_url_sensor: "http://<cloud-ip>:9090/api/v1/write"`.
+4. Anda tidak perlu mengisi target scrape di cloud (`prometheus_node_exporter_targets_cloud`,
+   `prometheus_wifi_targets`, `prometheus_speedtest_targets`).
 
-**E) Pilihan metode pengumpulan data**
-- Scrape langsung: Prometheus di cloud menarik data dari exporter di sensor.
-  Pastikan port sensor terbuka dan target diisi di `group_vars/cloud.yml`.
-- Remote write: prom agent di sensor mengirim data ke cloud.
-  Aktifkan `prometheus_remote_write_enable_sensor: true`,
-  set `prometheus_remote_write_url_sensor`, dan aktifkan
-  `prometheus_remote_write_receiver_enable_cloud: true` di cloud.
+**E) Secrets**
+Simpan password, token, atau TLS dalam Ansible Vault jika akan dipakai di produksi.
 
 ### 10) Uji Koneksi Ansible
 
@@ -297,6 +298,15 @@ ssh <user>@<sensor-ip> "curl -f http://localhost:9105/metrics | head"  # jika wi
 ssh <user>@<sensor-ip> "curl -f http://localhost:9798/metrics | head"  # jika speedtest aktif
 ssh <user>@<sensor-ip> "curl -f http://localhost:9801/metrics | head"  # jika fasttest aktif
 ```
+
+**Cek data remote write di cloud (mode rekomendasi):**
+
+```text
+up{job="node",sensor="<hostname-di-inventory>"}
+```
+
+Jalankan query di `http://<cloud-ip>:9090`. Jika hasilnya `1`, data sensor sudah masuk.
+Di mode remote write, halaman `/targets` tidak menampilkan sensor.
 
 **Akses UI:**
 - Grafana: `http://<cloud-ip>:3030`
@@ -356,21 +366,9 @@ Dokumentasi deployment lanjutan ada di `docs/deployment.md`.
 
 ## Manual Docker Workflow (Alternatif)
 
-Jika tidak ingin Ansible:
-
-- **Sensor**
-  ```bash
-  cd internet-monitoring
-  docker compose -f docker-compose.sensor.yml up -d
-  ```
-
-- **Cloud**
-  ```bash
-  cd internet-monitoring
-  docker compose up -d
-  ```
-
-Gunakan cara ini hanya untuk lab, Ansible lebih stabil untuk produksi.
+Stack ini memakai template Ansible untuk menghasilkan `docker-compose.yml` dan konfigurasi
+Prometheus/Grafana. Tanpa Ansible, Anda harus merender template tersebut secara manual.
+Untuk cara paling mudah dan efektif, gunakan Ansible seperti di tutorial utama.
 
 ## Troubleshooting Cepat
 
@@ -379,9 +377,11 @@ Gunakan cara ini hanya untuk lab, Ansible lebih stabil untuk produksi.
   - coba `ssh <user>@<host>` manual
 - `docker compose: command not found`:
   - pasang `docker-compose-plugin` atau set `docker_install_compose_plugin: true`
-- Grafana kosong:
-  - cek `http://<cloud-ip>:9090/targets` pastikan semua `UP`
-  - ubah time range di Grafana ke 1h terakhir
+- Grafana kosong (remote write):
+  - jalankan query `up{job="node",sensor="<hostname-di-inventory>"}` di Prometheus
+  - cek log `docker logs -f internet-monitoring-promagent-1` di sensor
+- Grafana kosong (scrape langsung):
+  - cek `http://<cloud-ip>:9090/targets` pastikan target sensor `UP`
 - Wi-Fi exporter tidak muncul:
   - pastikan `wifi_exporter_enable: true`
   - set `wifi_exporter_iface` sesuai interface yang benar
